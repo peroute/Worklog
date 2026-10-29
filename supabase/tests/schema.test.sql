@@ -13,7 +13,7 @@ select has_table('public', 'finding_images', 'finding_images table exists');
 
 -- 6-7: creating an auth user creates a matching profile (handle_new_user trigger)
 insert into auth.users (id, email, raw_user_meta_data)
-values ('11111111-1111-1111-1111-111111111111', 'hedi@test.local', '{"display_name":"Hedi"}');
+values ('11111111-1111-1111-1111-111111111111', 'hedi@pgtap.local', '{"display_name":"Hedi"}');
 
 select is(
   (select display_name from public.profiles where id = '11111111-1111-1111-1111-111111111111'),

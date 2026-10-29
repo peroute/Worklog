@@ -11,7 +11,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:integration": "vitest run --config vitest.integration.config.ts",
-    "db:test": "npx supabase test db"
+    "db:test": "npx supabase test db",
+    "env:local": "node scripts/write-local-env.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.118.0",

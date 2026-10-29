@@ -13,9 +13,9 @@ $$;
 
 -- ─── Fixtures (as superuser) ──────────────────────────────────────────────────
 insert into auth.users (id, email, raw_user_meta_data) values
-  ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'lead@test.local', '{"display_name":"Lead"}'),
-  ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'hedi@test.local', '{"display_name":"Hedi"}'),
-  ('cccccccc-cccc-cccc-cccc-cccccccccccc', 'khaushik@test.local', '{"display_name":"Khaushik"}');
+  ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'lead@pgtap.local', '{"display_name":"Lead"}'),
+  ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'hedi@pgtap.local', '{"display_name":"Hedi"}'),
+  ('cccccccc-cccc-cccc-cccc-cccccccccccc', 'khaushik@pgtap.local', '{"display_name":"Khaushik"}');
 update public.profiles set role = 'lead' where id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
 
 insert into public.projects (id, name, created_by) values
