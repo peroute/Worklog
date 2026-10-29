@@ -8,6 +8,11 @@ node_modules/
 dist/
 dist-ssr/
 *.local
+*.tsbuildinfo
+vite.config.ts.timestamp-*
+
+# Tool caches
+.eslintcache
 
 # Environment variables (Supabase URL/keys live here)
 .env
