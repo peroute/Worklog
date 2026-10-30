@@ -4,11 +4,11 @@ import { RequireAuth } from './features/auth/RequireAuth'
 import { FindingDetailPage } from './features/findings/FindingDetailPage'
 import { FindingFormPage } from './features/findings/FindingForm'
 import { AppLayout } from './features/layout/AppLayout'
-import { PlaceholderPage } from './features/layout/PlaceholderPage'
 import { ProjectPage } from './features/projects/ProjectPage'
 import { ProjectsPage } from './features/projects/ProjectsPage'
 import { TaskFormPage } from './features/tasks/TaskForm'
 import { TasksPage } from './features/tasks/TasksPage'
+import { TodayPage } from './features/today/TodayPage'
 
 /** Every page. All except /login require a signed-in user. */
 export function AppRoutes() {
@@ -22,7 +22,7 @@ export function AppRoutes() {
           </RequireAuth>
         }
       >
-        <Route index element={<PlaceholderPage title="Today" />} />
+        <Route index element={<TodayPage />} />
         <Route path="projects" element={<ProjectsPage />} />
         <Route path="projects/:id" element={<ProjectPage />} />
         <Route path="findings/new" element={<FindingFormPage />} />

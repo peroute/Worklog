@@ -9,7 +9,8 @@ import { useDeleteTask, useSetTaskStatus } from './queries'
 
 interface TaskRowProps {
   task: Task
-  assigneeName: string
+  /** Omitted inside a person's own Today column, where it would repeat the heading. */
+  assigneeName?: string
   /** Shown on cross-project lists (Tasks, Today); omitted on a project's own page. */
   projectName?: string
   me: Profile | undefined
@@ -52,7 +53,7 @@ export function TaskRow({ task, assigneeName, projectName, me }: TaskRowProps) {
           {projectName && <span className="mr-2 rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-600">{projectName}</span>}
           {task.title}
         </span>
-        <span className="text-gray-600">{assigneeName}</span>
+        {assigneeName && <span className="text-gray-600">{assigneeName}</span>}
         {overdue && <span className="rounded bg-red-50 px-1.5 py-0.5 text-xs font-medium text-red-600">Overdue</span>}
         {task.deadline && (
           <span className={overdue ? 'font-medium text-red-600' : 'text-gray-500'}>{formatDayHeading(task.deadline)}</span>
