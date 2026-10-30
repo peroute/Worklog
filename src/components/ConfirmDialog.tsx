@@ -7,12 +7,14 @@ interface ConfirmDialogProps {
   confirmLabel: string
   onConfirm: () => void
   onCancel: () => void
-  /** Disables the buttons while the action runs. */
+  /** Disables both buttons while the action runs. */
   busy?: boolean
+  /** Disables only the confirm button (e.g. still loading what it will do). */
+  confirmDisabled?: boolean
 }
 
 /** A simple modal "are you sure?" for destructive actions. */
-export function ConfirmDialog({ open, title, body, confirmLabel, onConfirm, onCancel, busy = false }: ConfirmDialogProps) {
+export function ConfirmDialog({ open, title, body, confirmLabel, onConfirm, onCancel, busy = false, confirmDisabled = false }: ConfirmDialogProps) {
   if (!open) return null
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
@@ -28,7 +30,7 @@ export function ConfirmDialog({ open, title, body, confirmLabel, onConfirm, onCa
           <button
             type="button"
             onClick={onConfirm}
-            disabled={busy}
+            disabled={busy || confirmDisabled}
             className="rounded bg-red-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
           >
             {confirmLabel}

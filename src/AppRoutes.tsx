@@ -3,6 +3,8 @@ import { LoginPage } from './features/auth/LoginPage'
 import { RequireAuth } from './features/auth/RequireAuth'
 import { AppLayout } from './features/layout/AppLayout'
 import { PlaceholderPage } from './features/layout/PlaceholderPage'
+import { ProjectPage } from './features/projects/ProjectPage'
+import { ProjectsPage } from './features/projects/ProjectsPage'
 
 /** Every page. All except /login require a signed-in user. */
 export function AppRoutes() {
@@ -17,8 +19,8 @@ export function AppRoutes() {
         }
       >
         <Route index element={<PlaceholderPage title="Today" />} />
-        <Route path="projects" element={<PlaceholderPage title="Projects" />} />
-        <Route path="projects/:id" element={<PlaceholderPage title="Project" />} />
+        <Route path="projects" element={<ProjectsPage />} />
+        <Route path="projects/:id" element={<ProjectPage />} />
         <Route path="findings/new" element={<PlaceholderPage title="Log finding" />} />
         <Route path="findings/:id" element={<PlaceholderPage title="Finding" />} />
         <Route path="findings/:id/edit" element={<PlaceholderPage title="Edit finding" />} />
