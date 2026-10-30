@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react'
+import { ui } from '../../components/ui'
 
 export interface ProjectFormValues {
   name: string
@@ -37,34 +38,36 @@ export function ProjectForm({ initial, submitLabel, onSubmit, onCancel }: Projec
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-3 rounded-lg border bg-white p-4">
-      <label className="block text-sm font-medium">
+    <form onSubmit={handleSubmit} className={`${ui.card} space-y-4 p-5`}>
+      <label className={ui.label}>
         Name
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className="mt-1 w-full rounded border border-gray-300 px-3 py-2"
+          placeholder="e.g. Mobile App QA"
+          className={ui.input}
         />
       </label>
-      <label className="block text-sm font-medium">
+      <label className={ui.label}>
         Description
         <textarea
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           rows={2}
-          className="mt-1 w-full rounded border border-gray-300 px-3 py-2"
+          placeholder="What is this project about? (optional)"
+          className={ui.input}
         />
       </label>
       {error && (
-        <p role="alert" className="text-sm text-red-600">
+        <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
           {error}
         </p>
       )}
-      <div className="flex gap-2">
-        <button type="submit" disabled={saving} className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-60">
+      <div className="flex flex-col-reverse gap-2 sm:flex-row">
+        <button type="submit" disabled={saving} className={ui.btnPrimary}>
           {submitLabel}
         </button>
-        <button type="button" onClick={onCancel} className="rounded px-4 py-2 text-sm hover:bg-gray-100">
+        <button type="button" onClick={onCancel} className={ui.btnSecondary}>
           Cancel
         </button>
       </div>

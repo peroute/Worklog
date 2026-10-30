@@ -56,14 +56,14 @@ describe('TodayPage', () => {
     expect(columnNames()).toEqual(['Hedi', 'Khaushik'])
   })
 
-  it('adds the lead\'s column when they have an open task', async () => {
+  it("adds the lead's column when they have an open task", async () => {
     vi.mocked(listTasks).mockResolvedValue([makeTask({ title: 'Lead todo', assignedTo: lead.id })])
     renderApp('/')
     await screen.findByRole('region', { name: 'Lead' })
     expect(columnNames()).toEqual(['Hedi', 'Khaushik', 'Lead'])
   })
 
-  it('counts and groups a person\'s tasks for the day', async () => {
+  it("counts and groups a person's tasks for the day", async () => {
     renderApp('/')
     const hediColumn = await screen.findByRole('region', { name: 'Hedi' })
     expect(within(hediColumn).getByText('done today 1 · open 2')).toBeInTheDocument()
@@ -75,7 +75,7 @@ describe('TodayPage', () => {
     expect(within(hediColumn).getByRole('link', { name: /Login crash/ })).toHaveTextContent('Mobile App QA')
   })
 
-  it('goes to the previous day and loads that day\'s findings', async () => {
+  it("goes to the previous day and loads that day's findings", async () => {
     renderApp('/')
     await screen.findByRole('region', { name: 'Hedi' })
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Thu, Oct 29')
@@ -90,6 +90,15 @@ describe('TodayPage', () => {
     renderApp('/?date=2026-10-27')
     expect(await screen.findByRole('heading', { level: 1, name: /Tue, Oct 27/ })).toBeInTheDocument()
     expect(listFindings).toHaveBeenCalledWith({ date: '2026-10-27' })
+  })
+
+  it("sums up the team's day in a summary strip", async () => {
+    renderApp('/')
+    const summary = await screen.findByRole('region', { name: 'Day summary' })
+    const tile = (label: string) => within(summary).getByText(label).parentElement
+    expect(tile('Open findings')).toHaveTextContent('1')
+    expect(tile('Overdue')).toHaveTextContent('1')
+    expect(tile('Done today')).toHaveTextContent('1')
   })
 
   it('shows empty states on a brand-new workspace', async () => {

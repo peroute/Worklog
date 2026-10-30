@@ -1,9 +1,11 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Avatar } from '../../components/Avatar'
 import { EmptyState } from '../../components/EmptyState'
 import { ErrorState } from '../../components/ErrorState'
 import { LoadingState } from '../../components/LoadingState'
 import { StatusBadge } from '../../components/StatusBadge'
+import { edge, ui } from '../../components/ui'
 import type { FindingStatus, TaskStatus } from '../../data/types'
 import { groupFindingsByDate } from '../../domain/groupFindings'
 import { canDeleteProject } from '../../domain/permissions'
@@ -16,8 +18,6 @@ import { nameOf, useProfiles } from '../team/queries'
 import { DeleteProjectDialog } from './DeleteProjectDialog'
 import { ProjectForm } from './ProjectForm'
 import { useProject, useUpdateProject } from './queries'
-
-const selectClass = 'rounded border border-gray-300 px-2 py-1 text-sm'
 
 export function ProjectPage() {
   const { id = '' } = useParams()
@@ -51,7 +51,11 @@ export function ProjectPage() {
   if (project.isError) return <ErrorState error={project.error} />
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
+      <Link to="/projects" className="text-sm font-medium text-fg-muted hover:text-fg">
+        ← Projects
+      </Link>
+
       {editing ? (
         <ProjectForm
           initial={{ name: project.data.name, description: project.data.description }}
@@ -63,24 +67,17 @@ export function ProjectPage() {
           onCancel={() => setEditing(false)}
         />
       ) : (
-        <header className="flex items-start justify-between gap-4">
-          <div>
-            <Link to="/projects" className="text-sm text-blue-600 hover:underline">
-              ← Projects
-            </Link>
-            <h1 className="text-xl font-semibold">{project.data.name}</h1>
-            {project.data.description && <p className="text-sm text-gray-600">{project.data.description}</p>}
+        <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <h1 className={ui.pageTitle}>{project.data.name}</h1>
+            {project.data.description && <p className="mt-1 text-sm text-fg-muted">{project.data.description}</p>}
           </div>
-          <div className="flex gap-2">
-            <button type="button" onClick={() => setEditing(true)} className="rounded px-3 py-1.5 text-sm hover:bg-gray-100">
+          <div className="flex shrink-0 gap-2">
+            <button type="button" onClick={() => setEditing(true)} className={ui.btnSecondary}>
               Edit
             </button>
             {me && canDeleteProject(me) && (
-              <button
-                type="button"
-                onClick={() => setDeleting(true)}
-                className="rounded px-3 py-1.5 text-sm text-red-600 hover:bg-red-50"
-              >
+              <button type="button" onClick={() => setDeleting(true)} className={ui.btnDangerGhost}>
                 Delete project
               </button>
             )}
@@ -88,42 +85,48 @@ export function ProjectPage() {
         </header>
       )}
 
-      <section aria-labelledby="tasks-heading" className="space-y-2">
-        <div className="flex items-center gap-3">
-          <h2 id="tasks-heading" className="font-semibold">
+      <section aria-labelledby="tasks-heading" className="space-y-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <h2 id="tasks-heading" className="text-lg font-semibold">
             Tasks
           </h2>
-          <label className="text-sm text-gray-600">
+          <label>
             <span className="sr-only">Task status</span>
-            <select value={taskStatus} onChange={(e) => setTaskStatus(e.target.value as TaskStatus | 'all')} className={selectClass}>
+            <select
+              value={taskStatus}
+              onChange={(e) => setTaskStatus(e.target.value as TaskStatus | 'all')}
+              className={ui.select}
+            >
               <option value="all">All</option>
               <option value="todo">To do</option>
               <option value="done">Done</option>
             </select>
           </label>
-          <Link to={`/tasks/new?projectId=${id}`} className="ml-auto text-sm text-blue-600 hover:underline">
+          <Link to={`/tasks/new?projectId=${id}`} className={`${ui.btnSecondary} ml-auto`}>
             + Assign task
           </Link>
         </div>
         {tasks.isError && <ErrorState error={tasks.error} />}
         {tasks.data && visibleTasks.length === 0 && <EmptyState message="No tasks here." />}
-        <ul className="divide-y rounded-lg border bg-white empty:hidden">
-          {visibleTasks.map((task) => (
-            <li key={task.id}>
-              <TaskRow task={task} assigneeName={nameOf(profiles.data, task.assignedTo)} me={me} />
-            </li>
-          ))}
-        </ul>
+        {visibleTasks.length > 0 && (
+          <ul className={`${ui.card} divide-y divide-line overflow-hidden`}>
+            {visibleTasks.map((task) => (
+              <li key={task.id}>
+                <TaskRow task={task} assigneeName={nameOf(profiles.data, task.assignedTo)} me={me} />
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
-      <section aria-labelledby="findings-heading" className="space-y-2">
-        <div className="flex items-center gap-3">
-          <h2 id="findings-heading" className="font-semibold">
+      <section aria-labelledby="findings-heading" className="space-y-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <h2 id="findings-heading" className="text-lg font-semibold">
             Findings
           </h2>
-          <label className="text-sm text-gray-600">
+          <label>
             <span className="sr-only">Person</span>
-            <select value={person} onChange={(e) => setPerson(e.target.value)} className={selectClass}>
+            <select value={person} onChange={(e) => setPerson(e.target.value)} className={ui.select}>
               <option value="all">Everyone</option>
               {profiles.data?.map((p) => (
                 <option key={p.id} value={p.id}>
@@ -132,41 +135,61 @@ export function ProjectPage() {
               ))}
             </select>
           </label>
-          <label className="text-sm text-gray-600">
+          <label>
             <span className="sr-only">Finding status</span>
             <select
               value={findingStatus}
               onChange={(e) => setFindingStatus(e.target.value as FindingStatus | 'all')}
-              className={selectClass}
+              className={ui.select}
             >
               <option value="all">Open + closed</option>
               <option value="open">Open</option>
               <option value="closed">Closed</option>
             </select>
           </label>
-          <Link to={`/findings/new?projectId=${id}`} className="ml-auto text-sm text-blue-600 hover:underline">
+          <Link to={`/findings/new?projectId=${id}`} className={`${ui.btnPrimary} ml-auto`}>
             + Log finding
           </Link>
         </div>
         {findings.isError && <ErrorState error={findings.error} />}
         {findings.data && dayGroups.length === 0 && <EmptyState message="No findings match." />}
-        {dayGroups.map((group) => (
-          <div key={group.date}>
-            <h3 className="mt-3 mb-1 text-sm font-medium text-gray-500">{formatDayHeading(group.date)}</h3>
-            <ul className="divide-y rounded-lg border bg-white">
-              {group.findings.map((finding) => (
-                <li key={finding.id}>
-                  <Link to={`/findings/${finding.id}`} className="flex items-center gap-3 px-4 py-2 text-sm hover:bg-gray-50">
-                    <span className="w-20 text-gray-600">{nameOf(profiles.data, finding.authorId)}</span>
-                    <span className="flex-1">{finding.title}</span>
-                    {finding.imageCount > 0 && <span className="text-gray-500">📷 {finding.imageCount}</span>}
-                    <StatusBadge status={finding.status} />
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ))}
+
+        <div className="space-y-5">
+          {dayGroups.map((group) => (
+            <div key={group.date}>
+              <h3 className="mb-2 text-base font-semibold">{formatDayHeading(group.date)}</h3>
+              <ul className={`${ui.card} divide-y divide-line overflow-hidden`}>
+                {group.findings.map((finding) => {
+                  const author = nameOf(profiles.data, finding.authorId)
+                  return (
+                    <li key={finding.id}>
+                      <Link
+                        to={`/findings/${finding.id}`}
+                        className={`flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 text-sm transition hover:bg-surface-2 ${
+                          finding.status === 'open' ? edge.open : edge.done
+                        }`}
+                      >
+                        <span className="flex items-center gap-2 text-fg-muted sm:w-28">
+                          <Avatar id={finding.authorId} name={author} size="sm" />
+                          {author}
+                        </span>
+                        <span className="min-w-0 flex-1 basis-full sm:basis-auto">
+                          <span className={`font-semibold ${finding.status === 'open' ? 'text-fg' : 'text-fg-muted'}`}>
+                            {finding.title}
+                          </span>
+                        </span>
+                        {finding.imageCount > 0 && (
+                          <span className="text-xs text-fg-muted">📷 {finding.imageCount}</span>
+                        )}
+                        <StatusBadge status={finding.status} />
+                      </Link>
+                    </li>
+                  )
+                })}
+              </ul>
+            </div>
+          ))}
+        </div>
       </section>
 
       <DeleteProjectDialog

@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { ErrorState } from '../../components/ErrorState'
 import { LoadingState } from '../../components/LoadingState'
+import { ui } from '../../components/ui'
 import type { FindingDetail, FindingImage } from '../../data/types'
 import { canEditContent } from '../../domain/permissions'
 import { todayInTeamTz } from '../../lib/dates'
@@ -29,8 +30,6 @@ function EditFinding({ id }: { id: string }) {
   }
   return <FindingForm initial={finding.data} />
 }
-
-const inputClass = 'mt-1 w-full rounded border border-gray-300 px-3 py-2'
 
 interface FieldErrors {
   project?: string
@@ -85,7 +84,7 @@ function FindingForm({ initial }: { initial?: FindingDetail }) {
             patch: values,
             removeImages: removed,
             newImages: images,
-            startPosition: Math.max(-1, ...(initial.images.map((i) => i.position))) + 1,
+            startPosition: Math.max(-1, ...initial.images.map((i) => i.position)) + 1,
           })
         : await createFinding.mutateAsync({ input: values, images })
 
@@ -99,89 +98,110 @@ function FindingForm({ initial }: { initial?: FindingDetail }) {
   }
 
   return (
-    <form onSubmit={onSubmit} noValidate className="mx-auto max-w-2xl space-y-4">
-      <h1 className="text-xl font-semibold">{initial ? 'Edit finding' : 'Log finding'}</h1>
+    <form onSubmit={onSubmit} noValidate className="mx-auto max-w-2xl space-y-6">
+      <h1 className={ui.pageTitle}>{initial ? 'Edit finding' : 'Log finding'}</h1>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <label className="block text-sm font-medium">
-          Project
-          <select
-            value={projectId}
-            onChange={(e) => {
-              setProjectId(e.target.value)
-              setTaskId('') // a task belongs to one project; don't keep a stale link
-            }}
-            className={inputClass}
-          >
-            <option value="">Choose…</option>
-            {projects.data?.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
-          {errors.project && <span className="text-xs text-red-600">{errors.project}</span>}
+      <div className={`${ui.card} space-y-5 p-5 sm:p-6`}>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label className={ui.label}>
+            Project
+            <select
+              value={projectId}
+              onChange={(e) => {
+                setProjectId(e.target.value)
+                setTaskId('') // a task belongs to one project; don't keep a stale link
+              }}
+              className={ui.input}
+            >
+              <option value="">Choose…</option>
+              {projects.data?.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+            {errors.project && <span className={ui.fieldError}>{errors.project}</span>}
+          </label>
+
+          <label className={ui.label}>
+            Linked task
+            <select
+              value={taskId}
+              onChange={(e) => setTaskId(e.target.value)}
+              disabled={!projectId}
+              className={ui.input}
+            >
+              <option value="">None</option>
+              {tasks.data?.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.title}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        <label className={ui.label}>
+          Title
+          <input value={title} onChange={(e) => setTitle(e.target.value)} className={ui.input} />
+          {errors.title && <span className={ui.fieldError}>{errors.title}</span>}
         </label>
 
-        <label className="block text-sm font-medium">
-          Linked task
-          <select value={taskId} onChange={(e) => setTaskId(e.target.value)} disabled={!projectId} className={inputClass}>
-            <option value="">None</option>
-            {tasks.data?.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.title}
-              </option>
-            ))}
-          </select>
+        <label className={ui.label}>
+          Explanation
+          <textarea
+            value={explanation}
+            onChange={(e) => setExplanation(e.target.value)}
+            rows={6}
+            className={ui.input}
+          />
+          {errors.explanation && <span className={ui.fieldError}>{errors.explanation}</span>}
         </label>
-      </div>
 
-      <label className="block text-sm font-medium">
-        Title
-        <input value={title} onChange={(e) => setTitle(e.target.value)} className={inputClass} />
-        {errors.title && <span className="text-xs text-red-600">{errors.title}</span>}
-      </label>
+        <label className={`${ui.label} sm:w-1/2`}>
+          Date
+          <input
+            type="date"
+            value={findingDate}
+            onChange={(e) => setFindingDate(e.target.value)}
+            className={ui.input}
+          />
+        </label>
 
-      <label className="block text-sm font-medium">
-        Explanation
-        <textarea value={explanation} onChange={(e) => setExplanation(e.target.value)} rows={6} className={inputClass} />
-        {errors.explanation && <span className="text-xs text-red-600">{errors.explanation}</span>}
-      </label>
-
-      <label className="block text-sm font-medium sm:w-1/2">
-        Date
-        <input type="date" value={findingDate} onChange={(e) => setFindingDate(e.target.value)} className={inputClass} />
-      </label>
-
-      <div className="space-y-2">
-        <p className="text-sm font-medium">Screenshots</p>
-        {keptImages.length > 0 && (
-          <ul className="flex flex-wrap gap-2">
-            {keptImages.map((image, index) => (
-              <li key={image.id} className="relative">
-                <img src={image.url} alt={`Saved screenshot ${index + 1}`} className="h-20 w-20 rounded object-cover" />
-                <button
-                  type="button"
-                  aria-label={`Remove saved screenshot ${index + 1}`}
-                  onClick={() => setRemoved((current) => [...current, image])}
-                  className="absolute -top-2 -right-2 h-6 w-6 rounded-full bg-gray-800 text-xs text-white"
-                >
-                  ×
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-        <ScreenshotInput value={newFiles} onChange={setNewFiles} existingCount={keptImages.length} />
+        <div className="space-y-2">
+          <p className="text-sm font-medium text-fg">Screenshots</p>
+          {keptImages.length > 0 && (
+            <ul className="flex flex-wrap gap-2">
+              {keptImages.map((image, index) => (
+                <li key={image.id} className="relative">
+                  <img
+                    src={image.url}
+                    alt={`Saved screenshot ${index + 1}`}
+                    className="h-20 w-20 rounded-lg object-cover ring-1 ring-line"
+                  />
+                  <button
+                    type="button"
+                    aria-label={`Remove saved screenshot ${index + 1}`}
+                    onClick={() => setRemoved((current) => [...current, image])}
+                    className="absolute -top-2 -right-2 h-6 w-6 rounded-full bg-accent text-xs text-white shadow ring-2 ring-white"
+                  >
+                    ×
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <ScreenshotInput value={newFiles} onChange={setNewFiles} existingCount={keptImages.length} />
+        </div>
       </div>
 
       {submitError && <ErrorState error={new Error(submitError)} />}
 
-      <div className="flex gap-2">
-        <button type="submit" disabled={saving} className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-60">
+      <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+        <button type="submit" disabled={saving} className={ui.btnPrimary}>
           {saving ? 'Saving…' : 'Save finding'}
         </button>
-        <button type="button" onClick={() => navigate(-1)} className="rounded px-4 py-2 text-sm hover:bg-gray-100">
+        <button type="button" onClick={() => navigate(-1)} className={ui.btnSecondary}>
           Cancel
         </button>
       </div>

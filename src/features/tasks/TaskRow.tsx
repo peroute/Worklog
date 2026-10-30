@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
+import { edge, ui } from '../../components/ui'
 import type { Profile, Task } from '../../data/types'
 import { isOverdue } from '../../domain/bucketTasks'
 import { canEditContent, canSetTaskStatus } from '../../domain/permissions'
@@ -16,6 +17,8 @@ interface TaskRowProps {
   me: Profile | undefined
 }
 
+const smallAction = 'rounded-md px-2 py-1 text-xs font-medium transition-colors'
+
 /** One task line, reused on the Project, Tasks and Today pages. Owns its own actions. */
 export function TaskRow({ task, assigneeName, projectName, me }: TaskRowProps) {
   const setStatus = useSetTaskStatus()
@@ -28,6 +31,8 @@ export function TaskRow({ task, assigneeName, projectName, me }: TaskRowProps) {
   const canToggle = me ? canSetTaskStatus(me, task) : false
   const canEdit = me ? canEditContent(me, task.createdBy) : false
   const done = task.status === 'done'
+  // Status edge: red = overdue, green = done, gray = still to do.
+  const edgeClass = overdue ? edge.overdue : done ? edge.done : edge.neutral
 
   async function run(action: () => Promise<unknown>) {
     setError(null)
@@ -39,47 +44,77 @@ export function TaskRow({ task, assigneeName, projectName, me }: TaskRowProps) {
   }
 
   return (
-    <div className="px-4 py-2 text-sm">
-      <div className="flex items-center gap-3">
+    <div className={`px-4 py-3 transition-colors hover:bg-surface-2/50 ${edgeClass}`}>
+      <div className="flex items-start gap-3">
         <input
           type="checkbox"
           checked={done}
           disabled={!canToggle || setStatus.isPending}
           aria-label={`Mark “${task.title}” done`}
-          onChange={(e) => run(() => setStatus.mutateAsync({ id: task.id, status: e.target.checked ? 'done' : 'todo' }))}
-          className="h-4 w-4"
+          onChange={(e) =>
+            run(() => setStatus.mutateAsync({ id: task.id, status: e.target.checked ? 'done' : 'todo' }))
+          }
+          className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer accent-blue-600 disabled:cursor-not-allowed"
         />
-        <span className={`flex-1 ${done ? 'text-gray-400 line-through' : ''}`}>
-          {projectName && <span className="mr-2 rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-600">{projectName}</span>}
-          {task.title}
-        </span>
-        {assigneeName && <span className="text-gray-600">{assigneeName}</span>}
-        {overdue && <span className="rounded bg-red-50 px-1.5 py-0.5 text-xs font-medium text-red-600">Overdue</span>}
-        {task.deadline && (
-          <span className={overdue ? 'font-medium text-red-600' : 'text-gray-500'}>{formatDayHeading(task.deadline)}</span>
-        )}
-        {task.explanation && (
-          <button type="button" onClick={() => setExpanded((v) => !v)} className="text-xs text-blue-600 hover:underline">
-            Details
-          </button>
-        )}
-        {canEdit && (
-          <>
-            <Link to={`/tasks/${task.id}/edit`} className="text-xs text-gray-600 hover:underline">
-              Edit
-            </Link>
-            <button type="button" onClick={() => setConfirmingDelete(true)} className="text-xs text-red-600 hover:underline">
-              Delete
+
+        <div className="min-w-0 flex-1">
+          <p className={`text-sm font-medium ${done ? 'text-fg-subtle line-through' : 'text-fg'}`}>
+            {projectName && <span className={`${ui.tag} mr-2 align-middle`}>{projectName}</span>}
+            {task.title}
+          </p>
+          {/* Meta wraps under the title on narrow screens. */}
+          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-fg-muted">
+            {assigneeName && <span>{assigneeName}</span>}
+            {overdue && (
+              <span className="rounded-md bg-overdue-soft px-1.5 py-0.5 font-semibold text-overdue">Overdue</span>
+            )}
+            {task.deadline && (
+              <span className={overdue ? 'font-medium text-overdue' : ''}>
+                <span aria-hidden="true">📅 </span>
+                {formatDayHeading(task.deadline)}
+              </span>
+            )}
+          </div>
+        </div>
+
+        <div className="flex shrink-0 items-center gap-0.5">
+          {task.explanation && (
+            <button
+              type="button"
+              aria-expanded={expanded}
+              onClick={() => setExpanded((v) => !v)}
+              className={`${smallAction} text-accent-fg hover:bg-accent-soft`}
+            >
+              Details
             </button>
-          </>
-        )}
+          )}
+          {canEdit && (
+            <>
+              <Link
+                to={`/tasks/${task.id}/edit`}
+                className={`${smallAction} text-fg-muted hover:bg-surface-2 hover:text-fg`}
+              >
+                Edit
+              </Link>
+              <button
+                type="button"
+                onClick={() => setConfirmingDelete(true)}
+                className={`${smallAction} text-overdue hover:bg-overdue-soft`}
+              >
+                Delete
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
       {expanded && task.explanation && (
-        <p className="mt-2 ml-7 rounded bg-gray-50 p-2 text-gray-700 whitespace-pre-wrap">{task.explanation}</p>
+        <p className="mt-2 ml-7 rounded-lg bg-surface-2 p-3 text-sm leading-relaxed text-fg whitespace-pre-wrap">
+          {task.explanation}
+        </p>
       )}
       {error && (
-        <p role="alert" className="mt-1 ml-7 text-xs text-red-600">
+        <p role="alert" className="mt-1 ml-7 text-xs font-medium text-overdue">
           {error}
         </p>
       )}

@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
+import { Avatar } from '../../components/Avatar'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { ErrorState } from '../../components/ErrorState'
 import { LoadingState } from '../../components/LoadingState'
 import { StatusBadge } from '../../components/StatusBadge'
+import { ui } from '../../components/ui'
 import { canEditContent } from '../../domain/permissions'
 import { formatDayHeading } from '../../lib/dates'
 import { useMe } from '../auth/useMe'
@@ -48,49 +50,53 @@ export function FindingDetailPage() {
   }
 
   return (
-    <article className="mx-auto max-w-3xl space-y-4">
+    <article className="mx-auto max-w-3xl space-y-6">
       {failedUploads > 0 && (
-        <p role="alert" className="rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800">
+        <p role="alert" className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-800">
           {failedUploads} screenshot(s) failed to upload — edit the finding to retry.
         </p>
       )}
       {actionError && <ErrorState error={new Error(actionError)} />}
 
-      <header className="space-y-1">
+      <header className="space-y-3">
         {project.data && (
-          <Link to={`/projects/${project.data.id}`} className="text-sm text-blue-600 hover:underline">
+          <Link to={`/projects/${project.data.id}`} className="text-sm font-medium text-fg-muted hover:text-fg">
             {project.data.name}
           </Link>
         )}
-        <div className="flex items-start justify-between gap-4">
-          <h1 className="text-xl font-semibold">{f.title}</h1>
+        <h1 className={ui.pageTitle}>{f.title}</h1>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-fg-muted">
+          <span className="flex items-center gap-2 font-semibold text-fg">
+            <Avatar id={f.authorId} name={nameOf(profiles.data, f.authorId)} size="sm" />
+            <span>{nameOf(profiles.data, f.authorId)}</span>
+          </span>
+          <span>Logged {formatDayHeading(f.findingDate)}</span>
           <StatusBadge status={f.status} />
+          {linkedTask && (
+            <>
+              <span className={ui.tag}>Task: {linkedTask.title}</span>
+            </>
+          )}
         </div>
-        <p className="text-sm text-gray-600">
-          <span>{nameOf(profiles.data, f.authorId)}</span> · {formatDayHeading(f.findingDate)}
-          {linkedTask && <> · Task: {linkedTask.title}</>}
-        </p>
       </header>
 
       <div className="flex flex-wrap gap-2">
         <button
           type="button"
           disabled={setStatus.isPending}
-          onClick={() => run(() => setStatus.mutateAsync({ id: f.id, status: f.status === 'open' ? 'closed' : 'open' }))}
-          className="rounded border px-3 py-1.5 text-sm hover:bg-gray-50 disabled:opacity-60"
+          onClick={() =>
+            run(() => setStatus.mutateAsync({ id: f.id, status: f.status === 'open' ? 'closed' : 'open' }))
+          }
+          className={f.status === 'open' ? ui.btnPrimary : ui.btnSecondary}
         >
           {f.status === 'open' ? 'Mark closed' : 'Reopen'}
         </button>
         {canEdit && (
           <>
-            <Link to={`/findings/${f.id}/edit`} className="rounded border px-3 py-1.5 text-sm hover:bg-gray-50">
+            <Link to={`/findings/${f.id}/edit`} className={ui.btnSecondary}>
               Edit
             </Link>
-            <button
-              type="button"
-              onClick={() => setConfirmingDelete(true)}
-              className="rounded border border-red-200 px-3 py-1.5 text-sm text-red-600 hover:bg-red-50"
-            >
+            <button type="button" onClick={() => setConfirmingDelete(true)} className={ui.btnDangerGhost}>
               Delete
             </button>
           </>
@@ -98,23 +104,28 @@ export function FindingDetailPage() {
       </div>
 
       {/* Plain text only: React escapes it, so pasted HTML shows as text, never as markup. */}
-      <p className="rounded-lg border bg-white p-4 text-sm whitespace-pre-wrap">{f.explanation}</p>
+      <p className={`${ui.card} p-5 text-sm leading-relaxed text-fg whitespace-pre-wrap`}>{f.explanation}</p>
 
       {f.images.length > 0 && (
-        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          {f.images.map((image, index) => (
-            <li key={image.id}>
-              <button
-                type="button"
-                aria-label={`Open screenshot ${index + 1}`}
-                onClick={() => setEnlarged(index)}
-                className="block w-full overflow-hidden rounded border bg-white"
-              >
-                <img src={image.url} alt="" className="h-40 w-full object-cover" />
-              </button>
-            </li>
-          ))}
-        </ul>
+        <section aria-labelledby="evidence-heading" className="space-y-3">
+          <h2 id="evidence-heading" className="text-lg font-semibold">
+            Evidence <span className="text-fg-muted">({f.images.length})</span>
+          </h2>
+          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            {f.images.map((image, index) => (
+              <li key={image.id}>
+                <button
+                  type="button"
+                  aria-label={`Open screenshot ${index + 1}`}
+                  onClick={() => setEnlarged(index)}
+                  className="block w-full overflow-hidden rounded-lg border border-line bg-surface-2 transition hover:border-accent"
+                >
+                  <img src={image.url} alt="" className="h-40 w-full object-cover" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
 
       {enlarged !== null && f.images[enlarged] && (
@@ -123,10 +134,18 @@ export function FindingDetailPage() {
           aria-modal="true"
           aria-label={`Screenshot ${enlarged + 1}`}
           onClick={() => setEnlarged(null)}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-accent/90 p-4"
         >
-          <img src={f.images[enlarged].url} alt={`Screenshot ${enlarged + 1}`} className="max-h-full max-w-full rounded" />
-          <button type="button" onClick={() => setEnlarged(null)} className="absolute top-4 right-4 rounded bg-white px-3 py-1 text-sm">
+          <img
+            src={f.images[enlarged].url}
+            alt={`Screenshot ${enlarged + 1}`}
+            className="max-h-full max-w-full rounded-lg shadow-2xl"
+          />
+          <button
+            type="button"
+            onClick={() => setEnlarged(null)}
+            className="absolute top-4 right-4 rounded-lg bg-white px-3 py-1.5 text-sm font-medium text-zinc-900 shadow"
+          >
             Close
           </button>
         </div>

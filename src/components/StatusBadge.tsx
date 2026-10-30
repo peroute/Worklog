@@ -1,13 +1,20 @@
 import type { FindingStatus, TaskStatus } from '../data/types'
 
-const STYLES: Record<FindingStatus | TaskStatus, { label: string; className: string }> = {
-  open: { label: 'Open', className: 'bg-amber-100 text-amber-800' },
-  closed: { label: 'Closed', className: 'bg-green-100 text-green-800' },
-  todo: { label: 'To do', className: 'bg-gray-100 text-gray-700' },
-  done: { label: 'Done', className: 'bg-green-100 text-green-800' },
+const STYLES: Record<FindingStatus | TaskStatus, { label: string; pill: string; dot: string }> = {
+  open: { label: 'Open', pill: 'bg-open-soft text-open ring-open-edge/40', dot: 'bg-open-edge' },
+  closed: { label: 'Closed', pill: 'bg-done-soft text-done ring-done-edge/40', dot: 'bg-done-edge' },
+  todo: { label: 'To do', pill: 'bg-surface-2 text-fg-muted ring-line-strong', dot: 'bg-fg-subtle' },
+  done: { label: 'Done', pill: 'bg-done-soft text-done ring-done-edge/40', dot: 'bg-done-edge' },
 }
 
 export function StatusBadge({ status }: { status: FindingStatus | TaskStatus }) {
-  const { label, className } = STYLES[status]
-  return <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${className}`}>{label}</span>
+  const { label, pill, dot } = STYLES[status]
+  return (
+    <span
+      className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${pill}`}
+    >
+      <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${dot}`} />
+      {label}
+    </span>
+  )
 }

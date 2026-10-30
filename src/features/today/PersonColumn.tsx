@@ -1,6 +1,8 @@
 import { useId } from 'react'
 import { Link } from 'react-router-dom'
+import { Avatar } from '../../components/Avatar'
 import { StatusBadge } from '../../components/StatusBadge'
+import { edge, ui } from '../../components/ui'
 import type { Finding, Profile, Task } from '../../data/types'
 import { bucketTasks } from '../../domain/bucketTasks'
 import { TaskRow } from '../tasks/TaskRow'
@@ -32,24 +34,27 @@ export function PersonColumn({ person, tasks, findings, viewedDate, isToday, me,
   const nothing = open === 0 && buckets.completed.length === 0 && mine.length === 0
 
   return (
-    <section aria-labelledby={headingId} className="space-y-3 rounded-lg border bg-white p-4">
-      <div>
-        <h2 id={headingId} className="text-lg font-semibold">
-          {person.displayName}
-        </h2>
-        <p className="text-xs text-gray-500">
-          {isToday ? 'done today' : 'done'} {buckets.completed.length} · open {open}
-        </p>
-      </div>
+    <section aria-labelledby={headingId} className={`${ui.card} flex flex-col overflow-hidden`}>
+      <header className="flex items-center gap-3 border-b border-line px-4 py-3">
+        <Avatar id={person.id} name={person.displayName} size="lg" />
+        <div className="min-w-0 flex-1">
+          <h2 id={headingId} className="truncate text-base font-semibold text-fg">
+            {person.displayName}
+          </h2>
+          <p className="text-xs text-fg-muted">
+            {isToday ? 'done today' : 'done'} {buckets.completed.length} · open {open}
+          </p>
+        </div>
+      </header>
 
-      {nothing && <p className="text-sm text-gray-500">Nothing logged yet.</p>}
+      {nothing && <p className="px-4 py-8 text-center text-sm text-fg-subtle">Nothing logged yet.</p>}
 
       {groups
         .filter(([, items]) => items.length > 0)
         .map(([label, items]) => (
-          <div key={label}>
-            <h3 className="text-xs font-medium tracking-wide text-gray-500 uppercase">{label}</h3>
-            <ul className="-mx-4 divide-y">
+          <div key={label} className="border-b border-line last:border-b-0">
+            <h3 className={`${ui.sectionTitle} px-4 pt-3 pb-1`}>{label}</h3>
+            <ul className="divide-y divide-line">
               {items.map((task) => (
                 <li key={task.id}>
                   <TaskRow task={task} projectName={projectName(task.projectId)} me={me} />
@@ -60,15 +65,20 @@ export function PersonColumn({ person, tasks, findings, viewedDate, isToday, me,
         ))}
 
       {mine.length > 0 && (
-        <div>
-          <h3 className="text-xs font-medium tracking-wide text-gray-500 uppercase">Findings</h3>
-          <ul className="mt-1 space-y-1">
+        <div className="bg-surface-2/40 px-4 py-3">
+          <h3 className={ui.sectionTitle}>Findings</h3>
+          <ul className="mt-2 space-y-1.5">
             {mine.map((finding) => (
               <li key={finding.id}>
-                <Link to={`/findings/${finding.id}`} className="flex items-center gap-2 rounded px-2 py-1 text-sm hover:bg-gray-50">
-                  <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-600">{projectName(finding.projectId)}</span>
-                  <span className="flex-1">{finding.title}</span>
-                  {finding.imageCount > 0 && <span className="text-gray-500">📷 {finding.imageCount}</span>}
+                <Link
+                  to={`/findings/${finding.id}`}
+                  className={`flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-line bg-surface px-3 py-2 text-sm transition-colors hover:border-accent ${
+                    finding.status === 'open' ? edge.open : edge.done
+                  }`}
+                >
+                  <span className={ui.tag}>{projectName(finding.projectId)}</span>
+                  <span className="min-w-0 flex-1 font-medium text-fg">{finding.title}</span>
+                  {finding.imageCount > 0 && <span className="text-xs text-fg-muted">📷 {finding.imageCount}</span>}
                   <StatusBadge status={finding.status} />
                 </Link>
               </li>

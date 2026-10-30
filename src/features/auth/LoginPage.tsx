@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { Navigate, useLocation, type Location } from 'react-router-dom'
+import { ui } from '../../components/ui'
 import { signIn } from '../../data/auth'
 import { useSession } from './SessionProvider'
 
@@ -32,51 +33,55 @@ export function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-gray-50 p-4">
-      <form onSubmit={onSubmit} className="w-full max-w-sm space-y-4 rounded-xl bg-white p-6 shadow">
-        <div>
-          <h1 className="text-2xl font-semibold">Worklog</h1>
-          <p className="text-sm text-gray-500">Sign in with your team account</p>
+    <main className="flex min-h-screen items-center justify-center p-4">
+      <div className="w-full max-w-sm">
+        <div className="mb-6 flex flex-col items-center text-center">
+          <span
+            aria-hidden="true"
+            className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-accent text-lg font-semibold text-white shadow-md"
+          >
+            W
+          </span>
+          <h1 className="text-2xl font-semibold tracking-tight">Worklog</h1>
+          <p className="mt-1 text-sm text-fg-muted">Sign in with your team account</p>
         </div>
 
-        <label className="block text-sm font-medium">
-          Email
-          <input
-            type="email"
-            autoComplete="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="mt-1 w-full rounded border border-gray-300 px-3 py-2"
-          />
-        </label>
+        <form onSubmit={onSubmit} className={`${ui.card} space-y-4 p-6`}>
+          <label className={ui.label}>
+            Email
+            <input
+              type="email"
+              autoComplete="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className={ui.input}
+            />
+          </label>
 
-        <label className="block text-sm font-medium">
-          Password
-          <input
-            type="password"
-            autoComplete="current-password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="mt-1 w-full rounded border border-gray-300 px-3 py-2"
-          />
-        </label>
+          <label className={ui.label}>
+            Password
+            <input
+              type="password"
+              autoComplete="current-password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className={ui.input}
+            />
+          </label>
 
-        {error && (
-          <p role="alert" className="text-sm text-red-600">
-            {error}
-          </p>
-        )}
+          {error && (
+            <p role="alert" className="rounded-lg bg-overdue-soft px-3 py-2 text-sm text-overdue">
+              {error}
+            </p>
+          )}
 
-        <button
-          type="submit"
-          disabled={submitting}
-          className="w-full rounded bg-blue-600 py-2 font-medium text-white disabled:opacity-60"
-        >
-          {submitting ? 'Signing in…' : 'Sign in'}
-        </button>
-      </form>
+          <button type="submit" disabled={submitting} className={`${ui.btnPrimary} w-full py-2.5`}>
+            {submitting ? 'Signing in…' : 'Sign in'}
+          </button>
+        </form>
+      </div>
     </main>
   )
 }

@@ -3,14 +3,13 @@ import { Link } from 'react-router-dom'
 import { EmptyState } from '../../components/EmptyState'
 import { ErrorState } from '../../components/ErrorState'
 import { LoadingState } from '../../components/LoadingState'
+import { ui } from '../../components/ui'
 import type { TaskStatus } from '../../data/types'
 import { useMe } from '../auth/useMe'
 import { useProjects } from '../projects/queries'
 import { nameOf, useProfiles } from '../team/queries'
 import { useTasks } from './queries'
 import { TaskRow } from './TaskRow'
-
-const selectClass = 'mt-1 block rounded border border-gray-300 px-2 py-1 text-sm'
 
 /** All tasks across projects. Defaults to open tasks (what still needs doing). */
 export function TasksPage() {
@@ -32,18 +31,25 @@ export function TasksPage() {
   const projectName = (id: string) => projects.data?.find((p) => p.id === id)?.name
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Tasks</h1>
-        <Link to="/tasks/new" className="rounded bg-blue-600 px-3 py-1.5 text-sm font-medium text-white">
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className={ui.pageTitle}>Tasks</h1>
+          <p className="mt-1 text-sm text-fg-muted">Everything assigned, across projects.</p>
+        </div>
+        <Link to="/tasks/new" className={ui.btnPrimary}>
           + Assign task
         </Link>
       </div>
 
-      <div className="flex flex-wrap gap-4 text-sm text-gray-600">
+      <div className={`${ui.card} grid gap-3 p-4 text-xs font-medium text-fg-muted sm:grid-cols-3`}>
         <label>
           Assignee
-          <select value={assignee} onChange={(e) => setAssignee(e.target.value)} className={selectClass}>
+          <select
+            value={assignee}
+            onChange={(e) => setAssignee(e.target.value)}
+            className={`${ui.select} mt-1 block w-full`}
+          >
             <option value="all">Everyone</option>
             {profiles.data?.map((p) => (
               <option key={p.id} value={p.id}>
@@ -54,7 +60,11 @@ export function TasksPage() {
         </label>
         <label>
           Status
-          <select value={status} onChange={(e) => setStatus(e.target.value as TaskStatus | 'all')} className={selectClass}>
+          <select
+            value={status}
+            onChange={(e) => setStatus(e.target.value as TaskStatus | 'all')}
+            className={`${ui.select} mt-1 block w-full`}
+          >
             <option value="todo">To do</option>
             <option value="done">Done</option>
             <option value="all">All</option>
@@ -62,7 +72,11 @@ export function TasksPage() {
         </label>
         <label>
           Project
-          <select value={projectId} onChange={(e) => setProjectId(e.target.value)} className={selectClass}>
+          <select
+            value={projectId}
+            onChange={(e) => setProjectId(e.target.value)}
+            className={`${ui.select} mt-1 block w-full`}
+          >
             <option value="all">All projects</option>
             {projects.data?.map((p) => (
               <option key={p.id} value={p.id}>
@@ -77,7 +91,7 @@ export function TasksPage() {
       {tasks.isError && <ErrorState error={tasks.error} />}
       {tasks.data && visible.length === 0 && <EmptyState message="No tasks match these filters." />}
       {visible.length > 0 && (
-        <ul className="divide-y rounded-lg border bg-white">
+        <ul className={`${ui.card} divide-y divide-line overflow-hidden`}>
           {visible.map((task) => (
             <li key={task.id}>
               <TaskRow

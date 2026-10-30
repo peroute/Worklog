@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { ErrorState } from '../../components/ErrorState'
 import { LoadingState } from '../../components/LoadingState'
+import { ui } from '../../components/ui'
 import type { NewTask, Task } from '../../data/types'
 import { canEditContent } from '../../domain/permissions'
 import { useMe } from '../auth/useMe'
@@ -29,8 +30,6 @@ function EditTask({ id }: { id: string }) {
   }
   return <TaskForm initial={task} />
 }
-
-const inputClass = 'mt-1 w-full rounded border border-gray-300 px-3 py-2'
 
 type FieldErrors = Partial<Record<'project' | 'title' | 'assignee', string>>
 
@@ -83,60 +82,67 @@ function TaskForm({ initial }: { initial?: Task }) {
   }
 
   return (
-    <form onSubmit={onSubmit} noValidate className="mx-auto max-w-2xl space-y-4">
-      <h1 className="text-xl font-semibold">{initial ? 'Edit task' : 'Assign task'}</h1>
+    <form onSubmit={onSubmit} noValidate className="mx-auto max-w-2xl space-y-6">
+      <h1 className={ui.pageTitle}>{initial ? 'Edit task' : 'Assign task'}</h1>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <label className="block text-sm font-medium">
-          Project
-          <select value={projectId} onChange={(e) => setProjectId(e.target.value)} className={inputClass}>
-            <option value="">Choose…</option>
-            {projects.data?.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
-          {errors.project && <span className="text-xs text-red-600">{errors.project}</span>}
+      <div className={`${ui.card} space-y-5 p-5 sm:p-6`}>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label className={ui.label}>
+            Project
+            <select value={projectId} onChange={(e) => setProjectId(e.target.value)} className={ui.input}>
+              <option value="">Choose…</option>
+              {projects.data?.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+            {errors.project && <span className={ui.fieldError}>{errors.project}</span>}
+          </label>
+
+          <label className={ui.label}>
+            Assignee
+            <select value={assignedTo} onChange={(e) => setAssignedTo(e.target.value)} className={ui.input}>
+              <option value="">Choose…</option>
+              {profiles.data?.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.displayName}
+                </option>
+              ))}
+            </select>
+            {errors.assignee && <span className={ui.fieldError}>{errors.assignee}</span>}
+          </label>
+        </div>
+
+        <label className={ui.label}>
+          Title
+          <input value={title} onChange={(e) => setTitle(e.target.value)} className={ui.input} />
+          {errors.title && <span className={ui.fieldError}>{errors.title}</span>}
         </label>
 
-        <label className="block text-sm font-medium">
-          Assignee
-          <select value={assignedTo} onChange={(e) => setAssignedTo(e.target.value)} className={inputClass}>
-            <option value="">Choose…</option>
-            {profiles.data?.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.displayName}
-              </option>
-            ))}
-          </select>
-          {errors.assignee && <span className="text-xs text-red-600">{errors.assignee}</span>}
+        <label className={ui.label}>
+          Explanation
+          <textarea
+            value={explanation}
+            onChange={(e) => setExplanation(e.target.value)}
+            rows={5}
+            className={ui.input}
+          />
+        </label>
+
+        <label className={`${ui.label} sm:w-1/2`}>
+          Deadline (optional)
+          <input type="date" value={deadline} onChange={(e) => setDeadline(e.target.value)} className={ui.input} />
         </label>
       </div>
 
-      <label className="block text-sm font-medium">
-        Title
-        <input value={title} onChange={(e) => setTitle(e.target.value)} className={inputClass} />
-        {errors.title && <span className="text-xs text-red-600">{errors.title}</span>}
-      </label>
-
-      <label className="block text-sm font-medium">
-        Explanation
-        <textarea value={explanation} onChange={(e) => setExplanation(e.target.value)} rows={5} className={inputClass} />
-      </label>
-
-      <label className="block text-sm font-medium sm:w-1/2">
-        Deadline (optional)
-        <input type="date" value={deadline} onChange={(e) => setDeadline(e.target.value)} className={inputClass} />
-      </label>
-
       {submitError && <ErrorState error={new Error(submitError)} />}
 
-      <div className="flex gap-2">
-        <button type="submit" disabled={saving} className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-60">
+      <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+        <button type="submit" disabled={saving} className={ui.btnPrimary}>
           {saving ? 'Saving…' : 'Save task'}
         </button>
-        <button type="button" onClick={() => navigate(-1)} className="rounded px-4 py-2 text-sm hover:bg-gray-100">
+        <button type="button" onClick={() => navigate(-1)} className={ui.btnSecondary}>
           Cancel
         </button>
       </div>
