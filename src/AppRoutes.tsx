@@ -1,6 +1,8 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { LoginPage } from './features/auth/LoginPage'
 import { RequireAuth } from './features/auth/RequireAuth'
+import { FindingDetailPage } from './features/findings/FindingDetailPage'
+import { FindingFormPage } from './features/findings/FindingForm'
 import { AppLayout } from './features/layout/AppLayout'
 import { PlaceholderPage } from './features/layout/PlaceholderPage'
 import { ProjectPage } from './features/projects/ProjectPage'
@@ -21,9 +23,9 @@ export function AppRoutes() {
         <Route index element={<PlaceholderPage title="Today" />} />
         <Route path="projects" element={<ProjectsPage />} />
         <Route path="projects/:id" element={<ProjectPage />} />
-        <Route path="findings/new" element={<PlaceholderPage title="Log finding" />} />
-        <Route path="findings/:id" element={<PlaceholderPage title="Finding" />} />
-        <Route path="findings/:id/edit" element={<PlaceholderPage title="Edit finding" />} />
+        <Route path="findings/new" element={<FindingFormPage />} />
+        <Route path="findings/:id" element={<FindingDetailPage />} />
+        <Route path="findings/:id/edit" element={<FindingFormPage />} />
         <Route path="tasks" element={<PlaceholderPage title="Tasks" />} />
         <Route path="tasks/new" element={<PlaceholderPage title="Assign task" />} />
         <Route path="tasks/:id/edit" element={<PlaceholderPage title="Edit task" />} />

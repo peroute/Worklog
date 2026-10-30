@@ -15,8 +15,8 @@ export function useProjects() {
   return useQuery({ queryKey: ['projects'], queryFn: listProjects })
 }
 
-export function useProject(id: string) {
-  return useQuery({ queryKey: ['projects', id], queryFn: () => getProject(id) })
+export function useProject(id: string, options: { enabled?: boolean } = {}) {
+  return useQuery({ queryKey: ['projects', id], queryFn: () => getProject(id), enabled: options.enabled ?? true })
 }
 
 export function useProjectDeleteCounts(id: string, enabled: boolean) {
