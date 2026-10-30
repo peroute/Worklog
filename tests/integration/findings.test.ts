@@ -8,6 +8,7 @@ import {
   setFindingStatus,
   updateFinding,
 } from '../../src/data/findings'
+import { getFindingImagesFor } from '../../src/data/images'
 import { createProject } from '../../src/data/projects'
 import type { NewFinding, Project } from '../../src/data/types'
 import { fakeImage, listFiles, resetData, userId } from './admin'
@@ -73,6 +74,17 @@ describe('findings data layer', () => {
     )
     await expect(deleteFinding(target.id)).rejects.toBeInstanceOf(DataError)
     expect(await listFiles(`findings/${target.id}`)).not.toHaveLength(0)
+  })
+
+  it('loads screenshots for many findings at once, grouped and ordered', async () => {
+    await loginAs('khaushik')
+    const listed = await listFindings({ projectId: project.id, date: '2026-10-29' })
+    const withImages = listed.find((f) => f.title === 'Login crash')!
+    const grouped = await getFindingImagesFor(listed.map((f) => f.id))
+
+    expect(grouped[withImages.id].map((i) => i.position)).toEqual([0, 1])
+    expect(grouped[withImages.id][0].url).toMatch(/^http/)
+    expect(await getFindingImagesFor([])).toEqual({})
   })
 
   it('deletes a finding together with its screenshot files', async () => {

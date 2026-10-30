@@ -7,7 +7,7 @@ import {
   setFindingStatus,
   updateFinding,
 } from '../../data/findings'
-import { deleteFindingImage, uploadFindingImages } from '../../data/images'
+import { deleteFindingImage, getFindingImagesFor, uploadFindingImages } from '../../data/images'
 import type { FindingImage, FindingStatus, NewFinding } from '../../data/types'
 
 type FindingFilter = Parameters<typeof listFindings>[0]
@@ -21,6 +21,20 @@ export function useFinding(id: string) {
     queryKey: ['findings', 'detail', id],
     queryFn: () => getFinding(id),
     // Signed screenshot URLs expire after 1 h; refetch before that so images never break.
+    staleTime: 50 * 60 * 1000,
+    refetchInterval: 50 * 60 * 1000,
+  })
+}
+
+/**
+ * Screenshots for a list of findings (project page "Show details"). Only runs when `enabled`,
+ * so the compact list never pays for it; refetches before the 1 h signed URLs expire.
+ */
+export function useFindingImages(findingIds: string[], enabled: boolean) {
+  return useQuery({
+    queryKey: ['findings', 'images', [...findingIds].sort()],
+    queryFn: () => getFindingImagesFor(findingIds),
+    enabled: enabled && findingIds.length > 0,
     staleTime: 50 * 60 * 1000,
     refetchInterval: 50 * 60 * 1000,
   })

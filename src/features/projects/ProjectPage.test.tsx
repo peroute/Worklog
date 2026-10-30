@@ -2,6 +2,7 @@ import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { listFindings } from '../../data/findings'
+import { getFindingImagesFor } from '../../data/images'
 import { getMyProfile, listProfiles } from '../../data/profiles'
 import { deleteProject, getProject, getProjectDeleteCounts, listProjects } from '../../data/projects'
 import { listTasks } from '../../data/tasks'
@@ -22,6 +23,7 @@ vi.mock('../../data/projects', () => ({
 }))
 vi.mock('../../data/tasks', () => ({ listTasks: vi.fn() }))
 vi.mock('../../data/findings', () => ({ listFindings: vi.fn() }))
+vi.mock('../../data/images', () => ({ getFindingImagesFor: vi.fn() }))
 
 const project: Project = {
   id: 'p1',
@@ -44,8 +46,23 @@ describe('ProjectPage', () => {
     vi.mocked(listProjects).mockResolvedValue([])
     vi.mocked(listTasks).mockResolvedValue([makeTask({ title: 'Retest login', projectId: 'p1' })])
     vi.mocked(listFindings).mockResolvedValue([
-      makeFinding({ title: 'Login crash', findingDate: '2026-10-29', status: 'open', authorId: hedi.id, imageCount: 2 }),
-      makeFinding({ title: 'Push delay', findingDate: '2026-10-29', status: 'closed', authorId: khaushik.id }),
+      makeFinding({
+        id: 'f-login',
+        title: 'Login crash',
+        explanation: 'Steps:\n1. Fresh install\n2. App closes',
+        findingDate: '2026-10-29',
+        status: 'open',
+        authorId: hedi.id,
+        imageCount: 2,
+      }),
+      makeFinding({
+        id: 'f-push',
+        title: 'Push delay',
+        explanation: 'Median 31s',
+        findingDate: '2026-10-29',
+        status: 'closed',
+        authorId: khaushik.id,
+      }),
       makeFinding({ title: 'Button misaligned', findingDate: '2026-10-28', status: 'open', authorId: hedi.id }),
     ])
   })
@@ -103,5 +120,51 @@ describe('ProjectPage', () => {
     await userEvent.click(within(dialog).getByRole('button', { name: 'Delete project' }))
     expect(deleteProject).toHaveBeenCalledWith('p1')
     expect(await screen.findByRole('heading', { name: 'Projects' })).toBeInTheDocument()
+  })
+
+  describe('Show details', () => {
+    const shots = {
+      'f-login': [
+        { id: 'i1', findingId: 'f-login', storagePath: 'findings/f-login/a.webp', position: 0, url: 'http://img/a' },
+        { id: 'i2', findingId: 'f-login', storagePath: 'findings/f-login/b.webp', position: 1, url: 'http://img/b' },
+      ],
+    }
+
+    it('starts collapsed and loads no screenshots', async () => {
+      renderApp('/projects/p1')
+      await screen.findByText('Login crash')
+      expect(screen.getByRole('button', { name: 'Show details' })).toHaveAttribute('aria-pressed', 'false')
+      expect(screen.queryByText(/Fresh install/)).not.toBeInTheDocument()
+      expect(getFindingImagesFor).not.toHaveBeenCalled()
+    })
+
+    it('expands every finding with its explanation and screenshot thumbnails', async () => {
+      vi.mocked(getFindingImagesFor).mockResolvedValue(shots)
+      renderApp('/projects/p1')
+      await userEvent.click(await screen.findByRole('button', { name: 'Show details' }))
+
+      const login = await screen.findByText(/Fresh install/)
+      expect(login).toHaveClass('whitespace-pre-wrap')
+      expect(login.textContent).toBe('Steps:\n1. Fresh install\n2. App closes')
+      expect(screen.getByText('Median 31s')).toBeInTheDocument()
+      expect(screen.getByText(/Button misaligned/)).toBeInTheDocument()
+
+      const thumbs = await screen.findAllByRole('img', { name: /Login crash — screenshot/ })
+      expect(thumbs.map((img) => img.getAttribute('src'))).toEqual(['http://img/a', 'http://img/b'])
+      expect(thumbs[0].closest('a')).toHaveAttribute('href', '/findings/f-login')
+      // Only findings that have screenshots are looked up (Push delay has none).
+      expect(getFindingImagesFor).toHaveBeenCalledWith(['f-login'])
+      expect(screen.getByRole('button', { name: 'Hide details' })).toHaveAttribute('aria-pressed', 'true')
+    })
+
+    it('remembers the choice next time a project is opened', async () => {
+      vi.mocked(getFindingImagesFor).mockResolvedValue(shots)
+      const first = renderApp('/projects/p1')
+      await userEvent.click(await screen.findByRole('button', { name: 'Show details' }))
+      first.unmount()
+
+      renderApp('/projects/p1')
+      expect(await screen.findByText(/Fresh install/)).toBeInTheDocument()
+    })
   })
 })

@@ -11,13 +11,33 @@ import { groupFindingsByDate } from '../../domain/groupFindings'
 import { canDeleteProject } from '../../domain/permissions'
 import { formatDayHeading } from '../../lib/dates'
 import { useMe } from '../auth/useMe'
-import { useFindings } from '../findings/queries'
+import { FindingDetails } from '../findings/FindingDetails'
+import { useFindingImages, useFindings } from '../findings/queries'
 import { useTasks } from '../tasks/queries'
 import { TaskRow } from '../tasks/TaskRow'
 import { nameOf, useProfiles } from '../team/queries'
 import { DeleteProjectDialog } from './DeleteProjectDialog'
 import { ProjectForm } from './ProjectForm'
 import { useProject, useUpdateProject } from './queries'
+
+// "Show details" is remembered per browser, like the theme.
+const SHOW_DETAILS_KEY = 'worklog-show-finding-details'
+
+function readShowDetails(): boolean {
+  try {
+    return localStorage.getItem(SHOW_DETAILS_KEY) === 'true'
+  } catch {
+    return false
+  }
+}
+
+function saveShowDetails(value: boolean): void {
+  try {
+    localStorage.setItem(SHOW_DETAILS_KEY, String(value))
+  } catch {
+    // Storage blocked: the toggle still works for this visit.
+  }
+}
 
 export function ProjectPage() {
   const { id = '' } = useParams()
@@ -34,6 +54,13 @@ export function ProjectPage() {
   const [taskStatus, setTaskStatus] = useState<TaskStatus | 'all'>('all')
   const [findingStatus, setFindingStatus] = useState<FindingStatus | 'all'>('all')
   const [person, setPerson] = useState<string>('all')
+  const [showDetails, setShowDetails] = useState(readShowDetails)
+
+  function toggleDetails() {
+    const next = !showDetails
+    setShowDetails(next)
+    saveShowDetails(next)
+  }
 
   // Filtering happens in the browser: one project's findings is a small list.
   const visibleTasks = (tasks.data ?? []).filter((t) => taskStatus === 'all' || t.status === taskStatus)
@@ -46,6 +73,9 @@ export function ProjectPage() {
       ),
     [findings.data, findingStatus, person],
   )
+  // Screenshots load only when details are on, and only for findings that have any.
+  const idsWithImages = dayGroups.flatMap((g) => g.findings.filter((f) => f.imageCount > 0).map((f) => f.id))
+  const images = useFindingImages(idsWithImages, showDetails)
 
   if (project.isPending) return <LoadingState />
   if (project.isError) return <ErrorState error={project.error} />
@@ -147,11 +177,21 @@ export function ProjectPage() {
               <option value="closed">Closed</option>
             </select>
           </label>
+          <button
+            type="button"
+            aria-pressed={showDetails}
+            onClick={toggleDetails}
+            className={showDetails ? `${ui.btnSecondary} border-accent text-accent-fg` : ui.btnSecondary}
+          >
+            <span aria-hidden="true">{showDetails ? '▴' : '▾'}</span>
+            {showDetails ? 'Hide details' : 'Show details'}
+          </button>
           <Link to={`/findings/new?projectId=${id}`} className={`${ui.btnPrimary} ml-auto`}>
             + Log finding
           </Link>
         </div>
         {findings.isError && <ErrorState error={findings.error} />}
+        {showDetails && images.isError && <ErrorState error={images.error} />}
         {findings.data && dayGroups.length === 0 && <EmptyState message="No findings match." />}
 
         <div className="space-y-5">
@@ -162,12 +202,10 @@ export function ProjectPage() {
                 {group.findings.map((finding) => {
                   const author = nameOf(profiles.data, finding.authorId)
                   return (
-                    <li key={finding.id}>
+                    <li key={finding.id} className={finding.status === 'open' ? edge.open : edge.done}>
                       <Link
                         to={`/findings/${finding.id}`}
-                        className={`flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 text-sm transition hover:bg-surface-2 ${
-                          finding.status === 'open' ? edge.open : edge.done
-                        }`}
+                        className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 text-sm transition hover:bg-surface-2"
                       >
                         <span className="flex items-center gap-2 text-fg-muted sm:w-28">
                           <Avatar id={finding.authorId} name={author} size="sm" />
@@ -183,6 +221,15 @@ export function ProjectPage() {
                         )}
                         <StatusBadge status={finding.status} />
                       </Link>
+                      {showDetails && (
+                        <FindingDetails
+                          findingId={finding.id}
+                          title={finding.title}
+                          explanation={finding.explanation}
+                          images={images.data?.[finding.id] ?? []}
+                          loadingImages={finding.imageCount > 0 && images.isPending}
+                        />
+                      )}
                     </li>
                   )
                 })}

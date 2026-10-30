@@ -9,6 +9,8 @@ import { afterEach, vi } from 'vitest'
 afterEach(() => {
   cleanup()
   vi.clearAllMocks()
+  // Saved UI preferences (theme, "show details") must not leak between tests. Node-only tests have no storage.
+  globalThis.localStorage?.clear()
 })
 
 // jsdom has no object URLs (used for screenshot thumbnails); give it harmless stand-ins.

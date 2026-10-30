@@ -51,6 +51,28 @@ export async function uploadFindingImages(
   return { uploaded: rows.map((r) => toFindingImage(r, urls[r.storage_path])), failed }
 }
 
+/**
+ * Screenshots for many findings at once (project page "Show details"): one query, one batch
+ * of signed URLs, grouped by finding and ordered by position. Avoids one request per finding.
+ */
+export async function getFindingImagesFor(findingIds: string[]): Promise<Record<string, FindingImage[]>> {
+  if (findingIds.length === 0) return {}
+  const { data, error } = await supabase
+    .from('finding_images')
+    .select('id, finding_id, storage_path, position')
+    .in('finding_id', findingIds)
+    .order('position')
+  if (error) throw toDataError(error)
+
+  const rows = data as FindingImageRow[]
+  const urls = await signImagePaths(rows.map((r) => r.storage_path))
+  const grouped: Record<string, FindingImage[]> = {}
+  for (const row of rows) {
+    ;(grouped[row.finding_id] ??= []).push(toFindingImage(row, urls[row.storage_path]))
+  }
+  return grouped
+}
+
 /** Removes one screenshot: DB row first (permission check), then the file. */
 export async function deleteFindingImage(image: FindingImage): Promise<void> {
   const { data, error } = await supabase.from('finding_images').delete().eq('id', image.id).select('id')
