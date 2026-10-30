@@ -1,0 +1,121 @@
+@import "tailwindcss";
+@import "@fontsource-variable/inter";
+
+/* `dark:` utilities apply when <html> has the `dark` class (set by src/lib/theme.ts). */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * Semantic color tokens. Components use these names (bg-surface, text-fg, border-line, text-open…),
+ * never raw palette colors, so one class works in both themes.
+ * Light = slate + blue. Dark = "Graphite": neutral near-black + bright blue.
+ */
+:root {
+  --canvas: #f8fafc;
+  --surface: #ffffff;
+  --surface-2: #f1f5f9;
+  --line: #e2e8f0;
+  --line-strong: #cbd5e1;
+  --fg: #0f172a;
+  --fg-muted: #64748b;
+  --fg-subtle: #94a3b8;
+  --accent: #2563eb;
+  --accent-hover: #1d4ed8;
+  --accent-soft: #eff6ff;
+  --accent-fg: #1d4ed8;
+  --open: #b45309;
+  --open-soft: #fffbeb;
+  --open-edge: #f59e0b;
+  --done: #047857;
+  --done-soft: #ecfdf5;
+  --done-edge: #10b981;
+  --overdue: #dc2626;
+  --overdue-soft: #fef2f2;
+  --overdue-edge: #ef4444;
+  --review: #6d28d9;
+  --review-soft: #f5f3ff;
+  --review-edge: #8b5cf6;
+  --fixed: #0369a1;
+  --fixed-soft: #f0f9ff;
+  --fixed-edge: #0ea5e9;
+}
+
+.dark {
+  --canvas: #111214;
+  --surface: #18181b;
+  --surface-2: #27272a;
+  --line: #27272a;
+  --line-strong: #3f3f46;
+  --fg: #e4e4e7;
+  --fg-muted: #a1a1aa;
+  --fg-subtle: #71717a;
+  --accent: #3b82f6;
+  --accent-hover: #60a5fa;
+  --accent-soft: #172554;
+  --accent-fg: #93c5fd;
+  --open: #facc15;
+  --open-soft: #3f2d00;
+  --open-edge: #facc15;
+  --done: #4ade80;
+  --done-soft: #052e16;
+  --done-edge: #4ade80;
+  --overdue: #f87171;
+  --overdue-soft: #3b0a0a;
+  --overdue-edge: #f87171;
+  --review: #c4b5fd;
+  --review-soft: #2e1065;
+  --review-edge: #a78bfa;
+  --fixed: #7dd3fc;
+  --fixed-soft: #082f49;
+  --fixed-edge: #38bdf8;
+}
+
+@theme inline {
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-fg: var(--fg);
+  --color-fg-muted: var(--fg-muted);
+  --color-fg-subtle: var(--fg-subtle);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-fg: var(--accent-fg);
+  --color-open: var(--open);
+  --color-open-soft: var(--open-soft);
+  --color-open-edge: var(--open-edge);
+  --color-done: var(--done);
+  --color-done-soft: var(--done-soft);
+  --color-done-edge: var(--done-edge);
+  --color-overdue: var(--overdue);
+  --color-overdue-soft: var(--overdue-soft);
+  --color-overdue-edge: var(--overdue-edge);
+  --color-review: var(--review);
+  --color-review-soft: var(--review-soft);
+  --color-review-edge: var(--review-edge);
+  --color-fixed: var(--fixed);
+  --color-fixed-soft: var(--fixed-soft);
+  --color-fixed-edge: var(--fixed-edge);
+}
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+  }
+  body {
+    @apply bg-canvas text-fg;
+  }
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-accent;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      transition-duration: 0.01ms !important;
+      animation-duration: 0.01ms !important;
+    }
+  }
+}
