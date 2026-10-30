@@ -1,11 +1,11 @@
 import { supabase } from '../lib/supabase'
 import { DataError, toDataError } from './errors'
+import { SIGNED_URL_TTL_SECONDS } from './limits'
 import { toFindingImage, type FindingImageRow } from './mappers'
 import type { FindingImage } from './types'
 
+export { MAX_IMAGES_PER_FINDING, SIGNED_URL_TTL_SECONDS } from './limits'
 export const FINDING_IMAGE_BUCKET = 'finding-images'
-export const MAX_IMAGES_PER_FINDING = 10
-export const SIGNED_URL_TTL_SECONDS = 3600
 
 const EXTENSIONS: Record<string, string> = { 'image/webp': 'webp', 'image/jpeg': 'jpg', 'image/png': 'png' }
 
