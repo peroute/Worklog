@@ -11,6 +11,7 @@ import { formatDayHeading } from '../../lib/dates'
 import { useMe } from '../auth/useMe'
 import { useFindings } from '../findings/queries'
 import { useTasks } from '../tasks/queries'
+import { TaskRow } from '../tasks/TaskRow'
 import { nameOf, useProfiles } from '../team/queries'
 import { DeleteProjectDialog } from './DeleteProjectDialog'
 import { ProjectForm } from './ProjectForm'
@@ -106,13 +107,10 @@ export function ProjectPage() {
         </div>
         {tasks.isError && <ErrorState error={tasks.error} />}
         {tasks.data && visibleTasks.length === 0 && <EmptyState message="No tasks here." />}
-        <ul className="divide-y rounded-lg border bg-white">
+        <ul className="divide-y rounded-lg border bg-white empty:hidden">
           {visibleTasks.map((task) => (
-            <li key={task.id} className="flex items-center gap-3 px-4 py-2 text-sm">
-              <span className="flex-1">{task.title}</span>
-              <span className="text-gray-600">{nameOf(profiles.data, task.assignedTo)}</span>
-              {task.deadline && <span className="text-gray-500">{formatDayHeading(task.deadline)}</span>}
-              <StatusBadge status={task.status} />
+            <li key={task.id}>
+              <TaskRow task={task} assigneeName={nameOf(profiles.data, task.assignedTo)} me={me} />
             </li>
           ))}
         </ul>

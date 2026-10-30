@@ -7,6 +7,8 @@ import { AppLayout } from './features/layout/AppLayout'
 import { PlaceholderPage } from './features/layout/PlaceholderPage'
 import { ProjectPage } from './features/projects/ProjectPage'
 import { ProjectsPage } from './features/projects/ProjectsPage'
+import { TaskFormPage } from './features/tasks/TaskForm'
+import { TasksPage } from './features/tasks/TasksPage'
 
 /** Every page. All except /login require a signed-in user. */
 export function AppRoutes() {
@@ -26,9 +28,9 @@ export function AppRoutes() {
         <Route path="findings/new" element={<FindingFormPage />} />
         <Route path="findings/:id" element={<FindingDetailPage />} />
         <Route path="findings/:id/edit" element={<FindingFormPage />} />
-        <Route path="tasks" element={<PlaceholderPage title="Tasks" />} />
-        <Route path="tasks/new" element={<PlaceholderPage title="Assign task" />} />
-        <Route path="tasks/:id/edit" element={<PlaceholderPage title="Edit task" />} />
+        <Route path="tasks" element={<TasksPage />} />
+        <Route path="tasks/new" element={<TaskFormPage />} />
+        <Route path="tasks/:id/edit" element={<TaskFormPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>
