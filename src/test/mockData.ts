@@ -7,11 +7,11 @@ import { vi } from 'vitest'
  */
 export const profilesModule = {
   getMyProfile: vi.fn(),
-  listProfiles: vi.fn(),
+  listProfiles: vi.fn(async () => []),
 }
 
 export const projectsModule = {
-  listProjects: vi.fn(),
+  listProjects: vi.fn(async () => []),
   getProject: vi.fn(),
   createProject: vi.fn(),
   updateProject: vi.fn(),
@@ -20,7 +20,9 @@ export const projectsModule = {
 }
 
 export const tasksModule = {
-  listTasks: vi.fn(),
+  listTasks: vi.fn(async () => []),
+  getTask: vi.fn(),
+  sendBackTask: vi.fn(),
   createTask: vi.fn(),
   updateTask: vi.fn(),
   setTaskStatus: vi.fn(),
@@ -28,12 +30,19 @@ export const tasksModule = {
 }
 
 export const findingsModule = {
-  listFindings: vi.fn(),
+  listFindings: vi.fn(async () => []),
   getFinding: vi.fn(),
   createFinding: vi.fn(),
   updateFinding: vi.fn(),
   setFindingStatus: vi.fn(),
   deleteFinding: vi.fn(),
+  sendBackFinding: vi.fn(),
+}
+
+export const commentsModule = {
+  listComments: vi.fn(async () => []),
+  listLatestComments: vi.fn(async () => ({})),
+  addComment: vi.fn(),
 }
 
 export const imagesModule = {
@@ -42,4 +51,5 @@ export const imagesModule = {
   listImagePaths: vi.fn(),
   removeStoredFiles: vi.fn(),
   signImagePaths: vi.fn(),
+  getFindingImagesFor: vi.fn(async () => ({})),
 }

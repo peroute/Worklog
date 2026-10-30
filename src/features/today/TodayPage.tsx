@@ -29,7 +29,9 @@ export function TodayPage() {
   }
 
   const projectName = (id: string) => day.data?.projects.find((p) => p.id === id)?.name
-  const columns = day.data ? todayColumns(day.data.profiles, day.data.tasks, day.data.findings, viewedDate) : []
+  // Columns and person lists show only the viewed day's findings; the strip counts all of them.
+  const dayFindings = (day.data?.findings ?? []).filter((f) => f.findingDate === viewedDate)
+  const columns = day.data ? todayColumns(day.data.profiles, day.data.tasks, dayFindings, viewedDate) : []
   const summary = day.data ? daySummary(day.data.tasks, day.data.findings, viewedDate) : null
 
   return (
@@ -90,9 +92,11 @@ export function TodayPage() {
       {day.data && summary && (
         <>
           {/* Team totals for the morning scan. Colors match the item edges below. */}
-          <section aria-label="Day summary" className="grid grid-cols-3 gap-2 sm:gap-4">
+          <section aria-label="Day summary" className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-4">
             {[
-              { label: 'Open findings', value: summary.openFindings, color: 'text-open', bar: 'bg-open-edge' },
+              // Same colors as the badges and edges: amber = lead's turn, violet = assignee's turn.
+              { label: 'Waiting for lead', value: summary.waitingForLead, color: 'text-open', bar: 'bg-open-edge' },
+              { label: 'Needs review', value: summary.needsReview, color: 'text-review', bar: 'bg-review-edge' },
               { label: 'Overdue', value: summary.overdue, color: 'text-overdue', bar: 'bg-overdue-edge' },
               { label: isToday ? 'Done today' : 'Done', value: summary.done, color: 'text-done', bar: 'bg-done-edge' },
             ].map((tile) => (
@@ -119,7 +123,7 @@ export function TodayPage() {
                 key={person.id}
                 person={person}
                 tasks={day.data.tasks}
-                findings={day.data.findings}
+                findings={dayFindings}
                 viewedDate={viewedDate}
                 isToday={isToday}
                 me={me}

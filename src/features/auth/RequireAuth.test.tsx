@@ -8,6 +8,8 @@ import { renderApp } from '../../test/renderApp'
 
 vi.mock('../../data/auth', () => import('../../test/mockAuth').then((m) => m.authModule))
 vi.mock('../../data/profiles', () => ({ getMyProfile: vi.fn(), listProfiles: vi.fn(async () => []) }))
+vi.mock('../../data/findings', () => import('../../test/mockData').then((m) => m.findingsModule))
+vi.mock('../../data/tasks', () => import('../../test/mockData').then((m) => m.tasksModule))
 
 describe('RequireAuth', () => {
   beforeEach(() => {
@@ -20,7 +22,7 @@ describe('RequireAuth', () => {
     expect(await screen.findByRole('button', { name: 'Sign in' })).toBeInTheDocument()
   })
 
-  it('shows the app layout with the signed-in user\'s name', async () => {
+  it("shows the app layout with the signed-in user's name", async () => {
     auth.signedInAs(hedi.id)
     renderApp('/')
     expect(await screen.findByText('Hedi')).toBeInTheDocument()

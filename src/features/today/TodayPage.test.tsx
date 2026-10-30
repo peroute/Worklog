@@ -81,7 +81,8 @@ describe('TodayPage', () => {
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Thu, Oct 29')
     await userEvent.click(screen.getByRole('button', { name: 'Previous day' }))
     expect(await screen.findByRole('heading', { level: 1, name: /Wed, Oct 28/ })).toBeInTheDocument()
-    expect(listFindings).toHaveBeenCalledWith({ date: '2026-10-28' })
+    // All findings are loaded once; the page shows only the viewed day's (fixture is dated Oct 29).
+    expect(within(column('Hedi')).queryByText('Login crash')).not.toBeInTheDocument()
     expect(within(column('Hedi')).getByText('done 0 · open 2')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Back to today' })).toBeInTheDocument()
   })
@@ -89,16 +90,31 @@ describe('TodayPage', () => {
   it('opens directly on a date from the URL', async () => {
     renderApp('/?date=2026-10-27')
     expect(await screen.findByRole('heading', { level: 1, name: /Tue, Oct 27/ })).toBeInTheDocument()
-    expect(listFindings).toHaveBeenCalledWith({ date: '2026-10-27' })
   })
 
   it("sums up the team's day in a summary strip", async () => {
     renderApp('/')
     const summary = await screen.findByRole('region', { name: 'Day summary' })
     const tile = (label: string) => within(summary).getByText(label).parentElement
-    expect(tile('Open findings')).toHaveTextContent('1')
+    // Waiting for lead = Login crash (open finding) + Done one (done task, not yet reviewed).
+    expect(tile('Waiting for lead')).toHaveTextContent('2')
+    expect(tile('Needs review')).toHaveTextContent('0')
     expect(tile('Overdue')).toHaveTextContent('1')
     expect(tile('Done today')).toHaveTextContent('1')
+  })
+
+  it("puts work sent back by the lead at the top of the person's column", async () => {
+    vi.mocked(listTasks).mockResolvedValue([
+      makeTask({ title: 'Upcoming one', assignedTo: hedi.id, deadline: '2026-11-05' }),
+      makeTask({ title: 'Sent back one', assignedTo: hedi.id, status: 'needs_review' }),
+    ])
+    renderApp('/')
+    const hediColumn = await screen.findByRole('region', { name: 'Hedi' })
+    const groups = within(hediColumn)
+      .getAllByRole('heading', { level: 3 })
+      .map((h) => h.textContent)
+    expect(groups[0]).toBe('Needs review')
+    expect(within(hediColumn).getByText('Needs review', { selector: 'span' })).toBeInTheDocument()
   })
 
   it('shows empty states on a brand-new workspace', async () => {
@@ -114,7 +130,10 @@ describe('TodayPage', () => {
 
   it('lists projects with open counts and offers the main actions', async () => {
     renderApp('/')
-    expect(await screen.findByRole('link', { name: 'Mobile App QA · 4 open' })).toHaveAttribute('href', '/projects/project-1')
+    expect(await screen.findByRole('link', { name: 'Mobile App QA · 4 open' })).toHaveAttribute(
+      'href',
+      '/projects/project-1',
+    )
     expect(screen.getByRole('link', { name: '+ Log finding' })).toHaveAttribute('href', '/findings/new')
     expect(screen.getByRole('link', { name: '+ Assign task' })).toHaveAttribute('href', '/tasks/new')
   })

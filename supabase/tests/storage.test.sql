@@ -17,7 +17,7 @@ insert into auth.users (id, email, raw_user_meta_data) values
 update public.profiles set role = 'lead' where id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
 
 insert into public.projects (id, name, created_by) values
-  ('dddddddd-dddd-dddd-dddd-dddddddddddd', 'Mobile App QA', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa');
+  ('dddddddd-dddd-dddd-dddd-dddddddddddd', 'pgtap: Mobile App QA', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa');
 insert into public.findings (id, project_id, title, explanation, author_id) values
   ('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', 'dddddddd-dddd-dddd-dddd-dddddddddddd',
    'Khaushik finding', 'x', 'cccccccc-cccc-cccc-cccc-cccccccccccc'),

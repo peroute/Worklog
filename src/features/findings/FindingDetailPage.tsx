@@ -6,13 +6,15 @@ import { ErrorState } from '../../components/ErrorState'
 import { LoadingState } from '../../components/LoadingState'
 import { StatusBadge } from '../../components/StatusBadge'
 import { ui } from '../../components/ui'
-import { canEditContent } from '../../domain/permissions'
+import { canComment, canEditContent, findingActions } from '../../domain/permissions'
 import { formatDayHeading } from '../../lib/dates'
 import { useMe } from '../auth/useMe'
 import { useProject } from '../projects/queries'
 import { useTasks } from '../tasks/queries'
 import { nameOf, useProfiles } from '../team/queries'
-import { useDeleteFinding, useFinding, useSetFindingStatus } from './queries'
+import { CommentThread } from '../comments/CommentThread'
+import { SendBackDialog } from '../review/SendBackDialog'
+import { useDeleteFinding, useFinding, useSendBackFinding, useSetFindingStatus } from './queries'
 
 export function FindingDetailPage() {
   const { id = '' } = useParams()
@@ -28,6 +30,8 @@ export function FindingDetailPage() {
   const tasks = useTasks({ projectId }, { enabled: Boolean(finding.data?.taskId) })
   const setStatus = useSetFindingStatus()
   const deleteFinding = useDeleteFinding()
+  const sendBack = useSendBackFinding()
+  const [sendingBack, setSendingBack] = useState(false)
 
   const [enlarged, setEnlarged] = useState<number | null>(null)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
@@ -38,7 +42,10 @@ export function FindingDetailPage() {
 
   const f = finding.data
   const linkedTask = tasks.data?.find((t) => t.id === f.taskId)
-  const canEdit = me ? canEditContent(me, f.authorId) : false
+  // Closed work is frozen for the author; only the lead can still edit it.
+  const canEdit = me ? canEditContent(me, f.authorId, f.status === 'closed') : false
+  const actions = me ? findingActions(me, f) : []
+  const setTo = (status: typeof f.status) => run(() => setStatus.mutateAsync({ id: f.id, status }))
 
   async function run(action: () => Promise<unknown>) {
     setActionError(null)
@@ -52,7 +59,7 @@ export function FindingDetailPage() {
   return (
     <article className="mx-auto max-w-3xl space-y-6">
       {failedUploads > 0 && (
-        <p role="alert" className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-800">
+        <p role="alert" className="rounded-lg border border-open-edge/40 bg-open-soft px-3 py-2.5 text-sm text-open">
           {failedUploads} screenshot(s) failed to upload — edit the finding to retry.
         </p>
       )}
@@ -81,16 +88,37 @@ export function FindingDetailPage() {
       </header>
 
       <div className="flex flex-wrap gap-2">
-        <button
-          type="button"
-          disabled={setStatus.isPending}
-          onClick={() =>
-            run(() => setStatus.mutateAsync({ id: f.id, status: f.status === 'open' ? 'closed' : 'open' }))
-          }
-          className={f.status === 'open' ? ui.btnPrimary : ui.btnSecondary}
-        >
-          {f.status === 'open' ? 'Mark closed' : 'Reopen'}
-        </button>
+        {/* Only the buttons this person may use right now (mirrors the DB rules). */}
+        {actions.includes('close') && (
+          <button
+            type="button"
+            disabled={setStatus.isPending}
+            onClick={() => setTo('closed')}
+            className={ui.btnPrimary}
+          >
+            Approve &amp; close
+          </button>
+        )}
+        {actions.includes('sendBack') && (
+          <button type="button" onClick={() => setSendingBack(true)} className={ui.btnSecondary}>
+            Send back for review
+          </button>
+        )}
+        {actions.includes('markFixed') && (
+          <button type="button" disabled={setStatus.isPending} onClick={() => setTo('fixed')} className={ui.btnPrimary}>
+            Mark fixed
+          </button>
+        )}
+        {actions.includes('reopen') && (
+          <button
+            type="button"
+            disabled={setStatus.isPending}
+            onClick={() => setTo('open')}
+            className={ui.btnSecondary}
+          >
+            Reopen
+          </button>
+        )}
         {canEdit && (
           <>
             <Link to={`/findings/${f.id}/edit`} className={ui.btnSecondary}>
@@ -150,6 +178,21 @@ export function FindingDetailPage() {
           </button>
         </div>
       )}
+
+      <CommentThread
+        target={{ findingId: f.id }}
+        canComment={me ? canComment(me, { kind: 'finding', authorId: f.authorId }) : false}
+      />
+
+      <SendBackDialog
+        open={sendingBack}
+        itemTitle={f.title}
+        onCancel={() => setSendingBack(false)}
+        onSubmit={async (body) => {
+          await sendBack.mutateAsync({ id: f.id, body })
+          setSendingBack(false)
+        }}
+      />
 
       <ConfirmDialog
         open={confirmingDelete}

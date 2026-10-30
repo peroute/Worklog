@@ -31,6 +31,12 @@
   --overdue: #dc2626;
   --overdue-soft: #fef2f2;
   --overdue-edge: #ef4444;
+  --review: #6d28d9;
+  --review-soft: #f5f3ff;
+  --review-edge: #8b5cf6;
+  --fixed: #0369a1;
+  --fixed-soft: #f0f9ff;
+  --fixed-edge: #0ea5e9;
 }
 
 .dark {
@@ -55,6 +61,12 @@
   --overdue: #f87171;
   --overdue-soft: #3b0a0a;
   --overdue-edge: #f87171;
+  --review: #c4b5fd;
+  --review-soft: #2e1065;
+  --review-edge: #a78bfa;
+  --fixed: #7dd3fc;
+  --fixed-soft: #082f49;
+  --fixed-edge: #38bdf8;
 }
 
 @theme inline {
@@ -80,6 +92,12 @@
   --color-overdue: var(--overdue);
   --color-overdue-soft: var(--overdue-soft);
   --color-overdue-edge: var(--overdue-edge);
+  --color-review: var(--review);
+  --color-review-soft: var(--review-soft);
+  --color-review-edge: var(--review-edge);
+  --color-fixed: var(--fixed);
+  --color-fixed-soft: var(--fixed-soft);
+  --color-fixed-edge: var(--fixed-edge);
 }
 
 @layer base {

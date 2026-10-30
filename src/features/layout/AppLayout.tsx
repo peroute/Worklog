@@ -7,6 +7,7 @@ import { ThemeToggle } from '../../components/ThemeToggle'
 import { ui } from '../../components/ui'
 import { signOut } from '../../data/auth'
 import { useMe } from '../auth/useMe'
+import { useReviewCount } from '../review/queries'
 
 const navClass = ({ isActive }: { isActive: boolean }) =>
   `shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
@@ -30,6 +31,7 @@ export function BrandMark() {
 /** Sticky top bar + page content. Shown for every signed-in route. */
 export function AppLayout() {
   const { me } = useMe()
+  const reviewCount = useReviewCount(me)
   const queryClient = useQueryClient()
   const [error, setError] = useState<string | null>(null)
 
@@ -61,6 +63,16 @@ export function AppLayout() {
             </NavLink>
             <NavLink to="/tasks" className={navClass}>
               Tasks
+            </NavLink>
+            <NavLink to="/review" className={navClass}>
+              <span className="flex items-center gap-1.5">
+                Review
+                {reviewCount > 0 && (
+                  <span className="rounded-full bg-review-edge px-1.5 text-xs font-semibold text-white">
+                    {reviewCount}
+                  </span>
+                )}
+              </span>
             </NavLink>
           </nav>
           <div className="ml-auto flex items-center gap-2">

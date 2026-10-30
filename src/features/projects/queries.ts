@@ -51,7 +51,9 @@ export function useDeleteProject() {
     // A project delete removes tasks and findings too, so refresh everything that lists them.
     onSuccess: async () => {
       await Promise.all(
-        [['projects'], ['tasks'], ['findings'], ['today']].map((queryKey) => queryClient.invalidateQueries({ queryKey })),
+        [['projects'], ['tasks'], ['findings'], ['today'], ['review']].map((queryKey) =>
+          queryClient.invalidateQueries({ queryKey }),
+        ),
       )
     },
   })

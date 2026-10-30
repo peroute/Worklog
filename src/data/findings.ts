@@ -64,7 +64,12 @@ export async function updateFinding(id: string, patch: Partial<NewFinding>): Pro
 }
 
 export async function setFindingStatus(id: string, status: FindingStatus): Promise<Finding> {
-  const { data, error } = await supabase.from('findings').update({ status }).eq('id', id).select(FINDING_COLUMNS).single()
+  const { data, error } = await supabase
+    .from('findings')
+    .update({ status })
+    .eq('id', id)
+    .select(FINDING_COLUMNS)
+    .single()
   if (error) throw toDataError(error, { notFound: 'Finding not found' })
   return toFinding(data as FindingRow)
 }
@@ -76,4 +81,10 @@ export async function deleteFinding(id: string): Promise<void> {
   if (error) throw toDataError(error)
   if (!data || data.length === 0) throw new DataError('Only the author or lead can delete this finding')
   await removeStoredFiles(paths)
+}
+
+/** Lead only: sends a finding back to its author with a required comment (one DB transaction). */
+export async function sendBackFinding(id: string, body: string): Promise<void> {
+  const { error } = await supabase.rpc('send_back_finding', { p_id: id, p_body: body })
+  if (error) throw toDataError(error)
 }

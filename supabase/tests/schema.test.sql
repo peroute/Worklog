@@ -28,7 +28,7 @@ select is(
 
 -- Fixtures: one project, one task, one finding linked to that task
 insert into public.projects (id, name, created_by)
-values ('22222222-2222-2222-2222-222222222222', 'Mobile App QA', '11111111-1111-1111-1111-111111111111');
+values ('22222222-2222-2222-2222-222222222222', 'pgtap: Mobile App QA', '11111111-1111-1111-1111-111111111111');
 
 insert into public.tasks (id, project_id, title, assigned_to, created_by)
 values ('33333333-3333-3333-3333-333333333333', '22222222-2222-2222-2222-222222222222', 'Retest login',

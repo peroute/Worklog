@@ -39,3 +39,16 @@ export function addDays(date: string, n: number): string {
 export function formatDayHeading(date: string): string {
   return headingFormat.format(new Date(`${date}T00:00:00Z`))
 }
+
+const dateTimeFormat = new Intl.DateTimeFormat('en-US', {
+  timeZone: TEAM_TIMEZONE,
+  month: 'short',
+  day: 'numeric',
+  hour: 'numeric',
+  minute: '2-digit',
+})
+
+/** e.g. 'Oct 29, 10:05 PM' in Central time (comment timestamps). */
+export function formatDateTime(iso: string): string {
+  return dateTimeFormat.format(new Date(iso))
+}

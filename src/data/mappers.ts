@@ -1,6 +1,7 @@
 // Translate database rows (snake_case) to app types (camelCase) and back.
 // This is the seam a future FastAPI backend would replace.
 import type {
+  Comment,
   Finding,
   FindingImage,
   FindingStatus,
@@ -67,6 +68,24 @@ export interface FindingImageRow {
   storage_path: string
   position: number
 }
+
+export interface CommentRow {
+  id: string
+  finding_id: string | null
+  task_id: string | null
+  author_id: string
+  body: string
+  created_at: string
+}
+
+export const toComment = (r: CommentRow): Comment => ({
+  id: r.id,
+  findingId: r.finding_id,
+  taskId: r.task_id,
+  authorId: r.author_id,
+  body: r.body,
+  createdAt: r.created_at,
+})
 
 export const toProfile = (r: ProfileRow): Profile => ({ id: r.id, displayName: r.display_name, role: r.role })
 

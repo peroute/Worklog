@@ -65,10 +65,11 @@ describe('findings data layer', () => {
     expect(await listFindings({ projectId: project.id, date: '2026-10-28' })).toHaveLength(0)
   })
 
-  it('lets any member close someone else\'s finding but not edit or delete it', async () => {
+  // Review flow (2026-10-30): only the lead closes findings.
+  it("does not let a member close, edit or delete someone else's finding", async () => {
     await loginAs('khaushik')
     const [target] = await listFindings({ projectId: project.id, status: 'open' })
-    expect((await setFindingStatus(target.id, 'closed')).status).toBe('closed')
+    await expect(setFindingStatus(target.id, 'closed')).rejects.toThrow('not allowed to change this status')
     await expect(updateFinding(target.id, { title: 'hijacked' })).rejects.toThrow(
       'only the author or lead can edit this finding',
     )

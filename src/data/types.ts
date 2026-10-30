@@ -23,7 +23,8 @@ export interface ProjectSummary extends Project {
   openTasks: number
 }
 
-export type TaskStatus = 'todo' | 'done'
+/** todo → done (waiting for lead) → approved | needs_review → fixed → approved | needs_review */
+export type TaskStatus = 'todo' | 'done' | 'needs_review' | 'fixed' | 'approved'
 
 export interface Task {
   id: string
@@ -46,7 +47,8 @@ export interface NewTask {
   deadline: string | null
 }
 
-export type FindingStatus = 'open' | 'closed'
+/** open (waiting for lead) → closed | needs_review → fixed → closed | needs_review */
+export type FindingStatus = 'open' | 'needs_review' | 'fixed' | 'closed'
 
 export interface Finding {
   id: string
@@ -82,3 +84,15 @@ export interface FindingImage {
 export interface FindingDetail extends Finding {
   images: FindingImage[]
 }
+
+export interface Comment {
+  id: string
+  findingId: string | null
+  taskId: string | null
+  authorId: string
+  body: string
+  createdAt: string
+}
+
+/** What a comment thread is attached to. */
+export type CommentTarget = { findingId: string } | { taskId: string }

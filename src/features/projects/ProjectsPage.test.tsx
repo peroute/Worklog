@@ -18,6 +18,8 @@ vi.mock('../../data/projects', () => ({
   getProjectDeleteCounts: vi.fn(),
   deleteProject: vi.fn(),
 }))
+vi.mock('../../data/findings', () => import('../../test/mockData').then((m) => m.findingsModule))
+vi.mock('../../data/tasks', () => import('../../test/mockData').then((m) => m.tasksModule))
 
 describe('ProjectsPage', () => {
   beforeEach(() => {
@@ -34,7 +36,15 @@ describe('ProjectsPage', () => {
 
   it('lists projects with their open counts', async () => {
     vi.mocked(listProjects).mockResolvedValue([
-      { id: 'p1', name: 'Mobile App QA', description: 'Android', createdBy: lead.id, createdAt: '', openFindings: 4, openTasks: 2 },
+      {
+        id: 'p1',
+        name: 'Mobile App QA',
+        description: 'Android',
+        createdBy: lead.id,
+        createdAt: '',
+        openFindings: 4,
+        openTasks: 2,
+      },
     ])
     renderApp('/projects')
     const link = await screen.findByRole('link', { name: /Mobile App QA/ })

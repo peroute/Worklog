@@ -18,6 +18,12 @@ export async function listTasks(
   return (data as TaskRow[]).map(toTask)
 }
 
+export async function getTask(id: string): Promise<Task> {
+  const { data, error } = await supabase.from('tasks').select('*').eq('id', id).single()
+  if (error) throw toDataError(error, { notFound: 'Task not found' })
+  return toTask(data as TaskRow)
+}
+
 export async function createTask(input: NewTask): Promise<Task> {
   const { data, error } = await supabase.from('tasks').insert(taskPatchToRow(input)).select('*').single()
   if (error) throw toDataError(error)
@@ -40,4 +46,10 @@ export async function deleteTask(id: string): Promise<void> {
   const { data, error } = await supabase.from('tasks').delete().eq('id', id).select('id')
   if (error) throw toDataError(error)
   if (!data || data.length === 0) throw new DataError('Only the creator or lead can delete this task')
+}
+
+/** Lead only: sends a task back to its assignee with a required comment (one DB transaction). */
+export async function sendBackTask(id: string, body: string): Promise<void> {
+  const { error } = await supabase.rpc('send_back_task', { p_id: id, p_body: body })
+  if (error) throw toDataError(error)
 }

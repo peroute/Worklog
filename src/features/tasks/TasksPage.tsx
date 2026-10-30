@@ -66,7 +66,10 @@ export function TasksPage() {
             className={`${ui.select} mt-1 block w-full`}
           >
             <option value="todo">To do</option>
-            <option value="done">Done</option>
+            <option value="done">Done (waiting for lead)</option>
+            <option value="needs_review">Needs review</option>
+            <option value="fixed">Fixed</option>
+            <option value="approved">Approved</option>
             <option value="all">All</option>
           </select>
         </label>

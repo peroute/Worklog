@@ -5,24 +5,26 @@ import { daySummary } from './daySummary'
 const viewed = '2026-10-29'
 
 describe('daySummary (Today summary strip)', () => {
-  it("counts the team's open findings, overdue tasks and tasks done that day", () => {
+  it('counts what waits for the lead, what needs a fix, overdue, and work finished that day', () => {
     const tasks = [
       makeTask({ assignedTo: hedi.id, deadline: '2026-10-28' }), // overdue
       makeTask({ assignedTo: khaushik.id, deadline: '2026-10-20' }), // overdue
       makeTask({ assignedTo: hedi.id, deadline: '2026-10-29' }), // due today: not overdue
-      makeTask({ assignedTo: hedi.id, status: 'done', doneAt: '2026-10-30T03:00:00Z' }), // done 22:00 Central Oct 29
-      makeTask({ assignedTo: hedi.id, status: 'done', doneAt: '2026-10-27T15:00:00Z' }), // done another day
-      makeTask({ assignedTo: hedi.id, status: 'done', deadline: '2026-10-01', doneAt: '2026-10-30T03:00:00Z' }), // late but done
+      makeTask({ assignedTo: hedi.id, status: 'done', doneAt: '2026-10-30T03:00:00Z' }), // waiting + finished 22:00 Central Oct 29
+      makeTask({ assignedTo: hedi.id, status: 'approved', doneAt: '2026-10-27T15:00:00Z' }), // finished another day
+      makeTask({ assignedTo: hedi.id, status: 'fixed', doneAt: '2026-10-30T03:00:00Z' }), // waiting + finished that day
+      makeTask({ assignedTo: hedi.id, status: 'needs_review', doneAt: '2026-10-30T03:00:00Z' }), // needs review
     ]
     const findings = [
       makeFinding({ status: 'open' }),
-      makeFinding({ status: 'open' }),
+      makeFinding({ status: 'fixed' }),
+      makeFinding({ status: 'needs_review' }),
       makeFinding({ status: 'closed' }),
     ]
-    expect(daySummary(tasks, findings, viewed)).toEqual({ openFindings: 2, overdue: 2, done: 2 })
+    expect(daySummary(tasks, findings, viewed)).toEqual({ waitingForLead: 4, needsReview: 2, overdue: 2, done: 2 })
   })
 
   it('is all zeros for an empty day', () => {
-    expect(daySummary([], [], viewed)).toEqual({ openFindings: 0, overdue: 0, done: 0 })
+    expect(daySummary([], [], viewed)).toEqual({ waitingForLead: 0, needsReview: 0, overdue: 0, done: 0 })
   })
 })

@@ -30,10 +30,31 @@ export const ui = {
   tag: 'inline-flex items-center rounded-md bg-surface-2 px-1.5 py-0.5 text-xs font-medium text-fg-muted',
 } as const
 
-/** Colored left edge for an item, by status: the morning scan at a glance. */
+/** Colored left edge for an item. The color says whose turn it is (review-flow spec §3). */
 export const edge = {
-  overdue: 'border-l-[3px] border-l-overdue-edge',
-  open: 'border-l-[3px] border-l-open-edge',
-  done: 'border-l-[3px] border-l-done-edge',
-  neutral: 'border-l-[3px] border-l-line-strong',
+  neutral: 'border-l-[3px] border-l-line-strong', // to do: not started
+  waiting: 'border-l-[3px] border-l-open-edge', // amber: waiting for the lead
+  review: 'border-l-[3px] border-l-review-edge', // violet: sent back, assignee's turn
+  fixed: 'border-l-[3px] border-l-fixed-edge', // sky: fixed, back with the lead
+  done: 'border-l-[3px] border-l-done-edge', // green: approved / closed
+  overdue: 'border-l-[3px] border-l-overdue-edge', // red: to do past its deadline
 } as const
+
+type AnyStatus = 'open' | 'needs_review' | 'fixed' | 'closed' | 'todo' | 'done' | 'approved'
+
+export function statusEdge(status: AnyStatus, overdue = false): string {
+  switch (status) {
+    case 'open':
+    case 'done':
+      return edge.waiting
+    case 'needs_review':
+      return edge.review
+    case 'fixed':
+      return edge.fixed
+    case 'closed':
+    case 'approved':
+      return edge.done
+    case 'todo':
+      return overdue ? edge.overdue : edge.neutral
+  }
+}

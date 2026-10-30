@@ -23,7 +23,7 @@ describe('TaskRow', () => {
     expect(screen.queryByText('Overdue')).not.toBeInTheDocument()
   })
 
-  it('disables the done checkbox on someone else\'s task', () => {
+  it("disables the done checkbox on someone else's task", () => {
     const task = makeTask({ title: 'Theirs', assignedTo: khaushik.id, createdBy: lead.id })
     renderWithProviders(<TaskRow task={task} assigneeName="Khaushik" me={hedi} />)
     expect(screen.getByRole('checkbox', { name: 'Mark “Theirs” done' })).toBeDisabled()
@@ -48,12 +48,31 @@ describe('TaskRow', () => {
   })
 
   it('expands to show the explanation with line breaks', async () => {
-    renderWithProviders(
-      <TaskRow task={makeTask({ explanation: 'Step 1\nStep 2' })} assigneeName="Hedi" me={hedi} />,
-    )
+    renderWithProviders(<TaskRow task={makeTask({ explanation: 'Step 1\nStep 2' })} assigneeName="Hedi" me={hedi} />)
     await userEvent.click(screen.getByRole('button', { name: 'Details' }))
     const text = screen.getByText(/Step 1/)
     expect(text).toHaveClass('whitespace-pre-wrap')
     expect(text.textContent).toBe('Step 1\nStep 2')
+  })
+})
+
+describe('TaskRow with the review flow', () => {
+  it('links the title to the task page', () => {
+    renderWithProviders(<TaskRow task={makeTask({ id: 't9', title: 'Retest' })} me={hedi} />)
+    expect(screen.getByRole('link', { name: 'Retest' })).toHaveAttribute('href', '/tasks/t9')
+  })
+
+  it('shows a sent-back task with its badge instead of a checkbox', () => {
+    renderWithProviders(<TaskRow task={makeTask({ title: 'Fix me', status: 'needs_review' })} me={hedi} />)
+    expect(screen.getByText('Needs review')).toBeInTheDocument()
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
+  })
+
+  it('lets the assignee untick a done task until the lead reviews it', async () => {
+    const task = makeTask({ id: 't2', title: 'Waiting', assignedTo: hedi.id, status: 'done' })
+    vi.mocked(setTaskStatus).mockResolvedValue({ ...task, status: 'todo' })
+    renderWithProviders(<TaskRow task={task} me={hedi} />)
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Mark “Waiting” done' }))
+    expect(setTaskStatus).toHaveBeenCalledWith('t2', 'todo')
   })
 })

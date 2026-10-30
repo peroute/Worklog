@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { addDays, formatDayHeading, TEAM_TIMEZONE, todayInTeamTz, toTeamDate } from './dates'
+import { addDays, formatDateTime, formatDayHeading, TEAM_TIMEZONE, todayInTeamTz, toTeamDate } from './dates'
 
 describe('dates (team timezone)', () => {
   it('uses Central time', () => {
@@ -27,6 +27,10 @@ describe('dates (team timezone)', () => {
 
   it('adds days across the DST change without drifting', () => {
     expect(addDays('2026-11-01', 1)).toBe('2026-11-02')
+  })
+
+  it('formats a comment timestamp in Central time', () => {
+    expect(formatDateTime('2026-10-30T03:05:00Z')).toBe('Oct 29, 10:05 PM')
   })
 
   it('formats a day heading', () => {

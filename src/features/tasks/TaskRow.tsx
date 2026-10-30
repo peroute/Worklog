@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
-import { edge, ui } from '../../components/ui'
+import { StatusBadge } from '../../components/StatusBadge'
+import { statusEdge, ui } from '../../components/ui'
 import type { Profile, Task } from '../../data/types'
 import { isOverdue } from '../../domain/bucketTasks'
-import { canEditContent, canSetTaskStatus } from '../../domain/permissions'
+import { canEditContent, taskActions } from '../../domain/permissions'
 import { formatDayHeading, todayInTeamTz } from '../../lib/dates'
 import { useDeleteTask, useSetTaskStatus } from './queries'
 
@@ -28,11 +29,14 @@ export function TaskRow({ task, assigneeName, projectName, me }: TaskRowProps) {
   const [error, setError] = useState<string | null>(null)
 
   const overdue = isOverdue(task, todayInTeamTz())
-  const canToggle = me ? canSetTaskStatus(me, task) : false
-  const canEdit = me ? canEditContent(me, task.createdBy) : false
-  const done = task.status === 'done'
-  // Status edge: red = overdue, green = done, gray = still to do.
-  const edgeClass = overdue ? edge.overdue : done ? edge.done : edge.neutral
+  const actions = me ? taskActions(me, task) : []
+  // The checkbox is the assignee's To do ⇄ Done switch; review states show their badge instead.
+  const showCheckbox = task.status === 'todo' || task.status === 'done'
+  const canToggle = actions.includes('markDone') || actions.includes('undoDone')
+  // Approved work is frozen for everyone but the lead.
+  const canEdit = me ? canEditContent(me, task.createdBy, task.status === 'approved') : false
+  const done = task.status !== 'todo' && task.status !== 'needs_review'
+  const edgeClass = statusEdge(task.status, overdue)
 
   async function run(action: () => Promise<unknown>) {
     setError(null)
@@ -46,24 +50,35 @@ export function TaskRow({ task, assigneeName, projectName, me }: TaskRowProps) {
   return (
     <div className={`px-4 py-3 transition-colors hover:bg-surface-2/50 ${edgeClass}`}>
       <div className="flex items-start gap-3">
-        <input
-          type="checkbox"
-          checked={done}
-          disabled={!canToggle || setStatus.isPending}
-          aria-label={`Mark “${task.title}” done`}
-          onChange={(e) =>
-            run(() => setStatus.mutateAsync({ id: task.id, status: e.target.checked ? 'done' : 'todo' }))
-          }
-          className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer accent-blue-600 disabled:cursor-not-allowed"
-        />
+        {showCheckbox ? (
+          <input
+            type="checkbox"
+            checked={done}
+            disabled={!canToggle || setStatus.isPending}
+            aria-label={`Mark “${task.title}” done`}
+            onChange={(e) =>
+              run(() => setStatus.mutateAsync({ id: task.id, status: e.target.checked ? 'done' : 'todo' }))
+            }
+            className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer accent-blue-600 disabled:cursor-not-allowed"
+          />
+        ) : (
+          <span aria-hidden="true" className="w-4 shrink-0" />
+        )}
 
         <div className="min-w-0 flex-1">
-          <p className={`text-sm font-medium ${done ? 'text-fg-subtle line-through' : 'text-fg'}`}>
+          <p
+            className={`text-sm font-medium ${
+              task.status === 'approved' ? 'text-fg-subtle line-through' : done ? 'text-fg-muted' : 'text-fg'
+            }`}
+          >
             {projectName && <span className={`${ui.tag} mr-2 align-middle`}>{projectName}</span>}
-            {task.title}
+            <Link to={`/tasks/${task.id}`} className="hover:text-accent-fg hover:underline">
+              {task.title}
+            </Link>
           </p>
           {/* Meta wraps under the title on narrow screens. */}
           <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-fg-muted">
+            {task.status !== 'todo' && <StatusBadge status={task.status} />}
             {assigneeName && <span>{assigneeName}</span>}
             {overdue && (
               <span className="rounded-md bg-overdue-soft px-1.5 py-0.5 font-semibold text-overdue">Overdue</span>

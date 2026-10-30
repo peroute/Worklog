@@ -52,3 +52,25 @@ describe('isOverdue', () => {
     expect(isOverdue(makeTask({ deadline: '2026-10-28', status: 'done' }), viewed)).toBe(false)
   })
 })
+
+describe('bucketTasks with the review flow', () => {
+  const finishedToday = '2026-10-30T03:00:00Z' // 22:00 Central on Oct 29
+  const tasks = [
+    makeTask({ title: 'sent back', status: 'needs_review', doneAt: finishedToday }),
+    makeTask({ title: 'waiting', status: 'done', doneAt: finishedToday }),
+    makeTask({ title: 'fixed', status: 'fixed', doneAt: finishedToday }),
+    makeTask({ title: 'approved', status: 'approved', doneAt: finishedToday }),
+    makeTask({ title: 'sent back, someone else', status: 'needs_review', assignedTo: khaushik.id }),
+  ]
+  const buckets = bucketTasks(tasks, hedi.id, '2026-10-29')
+
+  it('puts sent-back tasks in their own group, not in any other', () => {
+    expect(buckets.needsReview.map((t) => t.title)).toEqual(['sent back'])
+    expect(buckets.completed.map((t) => t.title)).not.toContain('sent back')
+    expect(buckets.dueOrOverdue).toHaveLength(0)
+  })
+
+  it('counts done, fixed and approved work as completed on the day it was finished', () => {
+    expect(buckets.completed.map((t) => t.title)).toEqual(['waiting', 'fixed', 'approved'])
+  })
+})

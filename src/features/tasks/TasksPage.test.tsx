@@ -12,6 +12,7 @@ vi.mock('../../data/auth', () => import('../../test/mockAuth').then((m) => m.aut
 vi.mock('../../data/profiles', () => import('../../test/mockData').then((m) => m.profilesModule))
 vi.mock('../../data/projects', () => import('../../test/mockData').then((m) => m.projectsModule))
 vi.mock('../../data/tasks', () => import('../../test/mockData').then((m) => m.tasksModule))
+vi.mock('../../data/findings', () => import('../../test/mockData').then((m) => m.findingsModule))
 
 describe('TasksPage', () => {
   beforeEach(() => {
@@ -19,7 +20,15 @@ describe('TasksPage', () => {
     vi.mocked(getMyProfile).mockResolvedValue(lead)
     vi.mocked(listProfiles).mockResolvedValue([hedi, khaushik, lead])
     vi.mocked(listProjects).mockResolvedValue([
-      { id: 'project-1', name: 'Mobile App QA', description: null, createdBy: lead.id, createdAt: '', openFindings: 0, openTasks: 2 },
+      {
+        id: 'project-1',
+        name: 'Mobile App QA',
+        description: null,
+        createdBy: lead.id,
+        createdAt: '',
+        openFindings: 0,
+        openTasks: 2,
+      },
     ])
     vi.mocked(listTasks).mockResolvedValue([
       makeTask({ title: 'Hedi task', assignedTo: hedi.id }),

@@ -9,6 +9,8 @@ import { renderApp } from '../../test/renderApp'
 
 vi.mock('../../data/auth', () => import('../../test/mockAuth').then((m) => m.authModule))
 vi.mock('../../data/profiles', () => ({ getMyProfile: vi.fn(), listProfiles: vi.fn(async () => []) }))
+vi.mock('../../data/findings', () => import('../../test/mockData').then((m) => m.findingsModule))
+vi.mock('../../data/tasks', () => import('../../test/mockData').then((m) => m.tasksModule))
 
 async function fillAndSubmit(email: string, password: string) {
   await userEvent.type(await screen.findByLabelText('Email'), email)

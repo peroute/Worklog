@@ -2,7 +2,7 @@ import { useId } from 'react'
 import { Link } from 'react-router-dom'
 import { Avatar } from '../../components/Avatar'
 import { StatusBadge } from '../../components/StatusBadge'
-import { edge, ui } from '../../components/ui'
+import { statusEdge, ui } from '../../components/ui'
 import type { Finding, Profile, Task } from '../../data/types'
 import { bucketTasks } from '../../domain/bucketTasks'
 import { TaskRow } from '../tasks/TaskRow'
@@ -26,12 +26,14 @@ export function PersonColumn({ person, tasks, findings, viewedDate, isToday, me,
   const open = buckets.dueOrOverdue.length + buckets.upcoming.length + buckets.noDeadline.length
 
   const groups: [string, Task[]][] = [
+    // Work the lead sent back comes first: it's what this person must do next.
+    ['Needs review', buckets.needsReview],
     ['Due / Overdue', buckets.dueOrOverdue],
     ['Upcoming', buckets.upcoming],
     ['No deadline', buckets.noDeadline],
     ['Completed', buckets.completed],
   ]
-  const nothing = open === 0 && buckets.completed.length === 0 && mine.length === 0
+  const nothing = open === 0 && buckets.needsReview.length === 0 && buckets.completed.length === 0 && mine.length === 0
 
   return (
     <section aria-labelledby={headingId} className={`${ui.card} flex flex-col overflow-hidden`}>
@@ -53,7 +55,9 @@ export function PersonColumn({ person, tasks, findings, viewedDate, isToday, me,
         .filter(([, items]) => items.length > 0)
         .map(([label, items]) => (
           <div key={label} className="border-b border-line last:border-b-0">
-            <h3 className={`${ui.sectionTitle} px-4 pt-3 pb-1`}>{label}</h3>
+            <h3 className={`${ui.sectionTitle} px-4 pt-3 pb-1 ${label === 'Needs review' ? 'text-review' : ''}`}>
+              {label}
+            </h3>
             <ul className="divide-y divide-line">
               {items.map((task) => (
                 <li key={task.id}>
@@ -72,9 +76,9 @@ export function PersonColumn({ person, tasks, findings, viewedDate, isToday, me,
               <li key={finding.id}>
                 <Link
                   to={`/findings/${finding.id}`}
-                  className={`flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-line bg-surface px-3 py-2 text-sm transition-colors hover:border-accent ${
-                    finding.status === 'open' ? edge.open : edge.done
-                  }`}
+                  className={`flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-line bg-surface px-3 py-2 text-sm transition-colors hover:border-accent ${statusEdge(
+                    finding.status,
+                  )}`}
                 >
                   <span className={ui.tag}>{projectName(finding.projectId)}</span>
                   <span className="min-w-0 flex-1 font-medium text-fg">{finding.title}</span>

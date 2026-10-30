@@ -19,7 +19,7 @@ insert into auth.users (id, email, raw_user_meta_data) values
 update public.profiles set role = 'lead' where id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
 
 insert into public.projects (id, name, created_by) values
-  ('dddddddd-dddd-dddd-dddd-dddddddddddd', 'Mobile App QA', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa');
+  ('dddddddd-dddd-dddd-dddd-dddddddddddd', 'pgtap: Mobile App QA', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa');
 
 insert into public.findings (id, project_id, title, explanation, author_id) values
   ('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', 'dddddddd-dddd-dddd-dddd-dddddddddddd',
@@ -42,7 +42,7 @@ reset role;
 select pg_temp.login_as('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb');
 set local role authenticated;
 select lives_ok($$ insert into public.projects (id, name)
-                   values ('22222222-2222-2222-2222-222222222222', 'Hedi project') $$,
+                   values ('22222222-2222-2222-2222-222222222222', 'pgtap: Hedi project') $$,
                 'member can create a project');                                        -- 2
 delete from public.projects where id = '22222222-2222-2222-2222-222222222222';
 reset role;
@@ -59,11 +59,13 @@ select is((select count(*)::int from public.projects where id = '22222222-2222-2
 -- ─── Findings ─────────────────────────────────────────────────────────────────
 select pg_temp.login_as('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb');
 set local role authenticated;
-select lives_ok($$ update public.findings set status = 'closed'
-                   where id = 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee' $$,
-                'member can close someone else''s finding');                           -- 5
+-- Review flow (2026-10-30): only the lead closes findings now.
+select throws_ok($$ update public.findings set status = 'closed'
+                    where id = 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee' $$,
+                 '42501', 'not allowed to change this status',
+                 'member cannot close someone else''s finding');                      -- 5
 select is((select status from public.findings where id = 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee'),
-          'closed', 'the status change took effect');                                  -- 6
+          'open', 'the finding stays open');                                           -- 6
 select throws_ok($$ update public.findings set title = 'hijacked'
                     where id = 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee' $$,
                  '42501', 'only the author or lead can edit this finding',
@@ -111,7 +113,7 @@ select lives_ok($$ insert into public.tasks (id, project_id, title, assigned_to)
                 'member can create and assign a task');                                -- 14
 select throws_ok($$ update public.tasks set status = 'done'
                     where id = '11111111-1111-1111-1111-111111111111' $$,
-                 '42501', 'not allowed to edit this task',
+                 '42501', 'not allowed to change this status',
                  'member cannot complete a task assigned to someone else');            -- 15
 select throws_ok($$ insert into public.tasks (project_id, title, assigned_to, created_by)
                     values ('dddddddd-dddd-dddd-dddd-dddddddddddd', 'forged',

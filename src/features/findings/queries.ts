@@ -5,6 +5,7 @@ import {
   getFinding,
   listFindings,
   setFindingStatus,
+  sendBackFinding,
   updateFinding,
 } from '../../data/findings'
 import { deleteFindingImage, getFindingImagesFor, uploadFindingImages } from '../../data/images'
@@ -43,7 +44,9 @@ export function useFindingImages(findingIds: string[], enabled: boolean) {
 /** Everything that shows findings or their counts. */
 function invalidateFindingViews(queryClient: QueryClient) {
   return Promise.all(
-    [['findings'], ['projects'], ['today']].map((queryKey) => queryClient.invalidateQueries({ queryKey })),
+    [['findings'], ['projects'], ['today'], ['review'], ['comments']].map((queryKey) =>
+      queryClient.invalidateQueries({ queryKey }),
+    ),
   )
 }
 
@@ -89,6 +92,15 @@ export function useDeleteFinding() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => deleteFinding(id),
+    onSuccess: () => invalidateFindingViews(queryClient),
+  })
+}
+
+/** Lead only: comment + needs_review in one step. */
+export function useSendBackFinding() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: string }) => sendBackFinding(id, body),
     onSuccess: () => invalidateFindingViews(queryClient),
   })
 }

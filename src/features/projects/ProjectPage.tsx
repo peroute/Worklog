@@ -5,7 +5,7 @@ import { EmptyState } from '../../components/EmptyState'
 import { ErrorState } from '../../components/ErrorState'
 import { LoadingState } from '../../components/LoadingState'
 import { StatusBadge } from '../../components/StatusBadge'
-import { edge, ui } from '../../components/ui'
+import { statusEdge, ui } from '../../components/ui'
 import type { FindingStatus, TaskStatus } from '../../data/types'
 import { groupFindingsByDate } from '../../domain/groupFindings'
 import { canDeleteProject } from '../../domain/permissions'
@@ -129,7 +129,10 @@ export function ProjectPage() {
             >
               <option value="all">All</option>
               <option value="todo">To do</option>
-              <option value="done">Done</option>
+              <option value="done">Done (waiting for lead)</option>
+              <option value="needs_review">Needs review</option>
+              <option value="fixed">Fixed</option>
+              <option value="approved">Approved</option>
             </select>
           </label>
           <Link to={`/tasks/new?projectId=${id}`} className={`${ui.btnSecondary} ml-auto`}>
@@ -172,8 +175,10 @@ export function ProjectPage() {
               onChange={(e) => setFindingStatus(e.target.value as FindingStatus | 'all')}
               className={ui.select}
             >
-              <option value="all">Open + closed</option>
-              <option value="open">Open</option>
+              <option value="all">All statuses</option>
+              <option value="open">Open (waiting for lead)</option>
+              <option value="needs_review">Needs review</option>
+              <option value="fixed">Fixed</option>
               <option value="closed">Closed</option>
             </select>
           </label>
@@ -202,7 +207,7 @@ export function ProjectPage() {
                 {group.findings.map((finding) => {
                   const author = nameOf(profiles.data, finding.authorId)
                   return (
-                    <li key={finding.id} className={finding.status === 'open' ? edge.open : edge.done}>
+                    <li key={finding.id} className={statusEdge(finding.status)}>
                       <Link
                         to={`/findings/${finding.id}`}
                         className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 text-sm transition hover:bg-surface-2"
