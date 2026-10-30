@@ -13,12 +13,15 @@ async function restrictedImportErrors(filePath: string): Promise<number> {
   return result.messages.filter((m) => m.ruleId === 'no-restricted-imports').length
 }
 
+// ESLint loads the TypeScript parser on first use (~seconds when other test files start in parallel).
+const ESLINT_STARTUP_TIMEOUT_MS = 15_000
+
 describe('supabase import fence', () => {
   it('eslint rejects supabase import in a feature file', async () => {
     expect(await restrictedImportErrors('src/features/x/y.tsx')).toBe(1)
-  })
+  }, ESLINT_STARTUP_TIMEOUT_MS)
 
   it('eslint allows supabase import in the data layer', async () => {
     expect(await restrictedImportErrors('src/data/x.ts')).toBe(0)
-  })
+  }, ESLINT_STARTUP_TIMEOUT_MS)
 })
