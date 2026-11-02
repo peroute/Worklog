@@ -53,6 +53,18 @@ describe('TasksPage', () => {
     expect(screen.queryByText('Khaushik task')).not.toBeInTheDocument()
   })
 
+  it('starts a member on their own tasks but lets them see everyone', async () => {
+    auth.signedInAs(hedi.id)
+    vi.mocked(getMyProfile).mockResolvedValue(hedi)
+    renderApp('/tasks')
+    expect(await screen.findByText('Hedi task')).toBeInTheDocument()
+    expect(screen.queryByText('Khaushik task')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Assignee')).toHaveValue(hedi.id)
+
+    await userEvent.selectOptions(screen.getByLabelText('Assignee'), 'all')
+    expect(screen.getByText('Khaushik task')).toBeInTheDocument()
+  })
+
   it('can show done tasks', async () => {
     renderApp('/tasks')
     await screen.findByText('Hedi task')
