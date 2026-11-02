@@ -43,6 +43,23 @@ export async function setTaskStatus(id: string, status: TaskStatus): Promise<Tas
   return toTask(data as TaskRow)
 }
 
+/**
+ * The assignee hands in their work: note + status in ONE update, so the lead never sees
+ * "Submitted" without the explanation (or the reverse).
+ * `status: null` = only edit the note. `note: undefined` = leave the note as it is.
+ */
+export async function submitTask(
+  id: string,
+  { note, status }: { note?: string | null; status: Extract<TaskStatus, 'submitted' | 'resubmitted'> | null },
+): Promise<Task> {
+  const patch: Record<string, unknown> = {}
+  if (note !== undefined) patch.submission_note = note
+  if (status) patch.status = status
+  const { data, error } = await supabase.from('tasks').update(patch).eq('id', id).select('*').single()
+  if (error) throw toDataError(error, { notFound: 'Task not found' })
+  return toTask(data as TaskRow)
+}
+
 /** Same order as deleteFinding: attachment paths → row (permission check) → files. */
 export async function deleteTask(id: string): Promise<void> {
   const paths = await listTaskAttachmentPaths([id])

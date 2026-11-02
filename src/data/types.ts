@@ -23,6 +23,9 @@ export interface ProjectSummary extends Project {
   openTasks: number
 }
 
+/** 'brief' = what to do (from the creator). 'proof' = evidence the work is done (from the assignee). */
+export type AttachmentKind = 'brief' | 'proof'
+
 /** A file attached to a task (screenshot or document). */
 export interface TaskAttachment {
   id: string
@@ -34,6 +37,7 @@ export interface TaskAttachment {
   position: number
   /** Who added it: the task's creator (the brief), the assignee (proof of work), or the lead. */
   uploadedBy: string
+  kind: AttachmentKind
   /**
    * Short-lived signed URL. Images open inline; documents carry a download flag so the
    * browser saves them under their original name instead of rendering them.
@@ -57,6 +61,8 @@ export interface Task {
   deadline: string | null
   status: TaskStatus
   doneAt: string | null
+  /** The assignee's "what I did" note, handed in with the proof files. */
+  submissionNote: string | null
   createdBy: string
   createdAt: string
 }
