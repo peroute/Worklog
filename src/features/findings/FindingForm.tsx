@@ -6,8 +6,9 @@ import { MarkdownField } from '../../components/MarkdownField'
 import { RemoveBadge } from '../../components/FileDropzone'
 import { ui } from '../../components/ui'
 import type { FindingDetail, FindingImage } from '../../data/types'
+import { notStartedBy } from '../../domain/bucketTasks'
 import { canEditContent } from '../../domain/permissions'
-import { todayInTeamTz } from '../../lib/dates'
+import { formatDayHeading, todayInTeamTz } from '../../lib/dates'
 import { useMe } from '../auth/useMe'
 import { useProjects } from '../projects/queries'
 import { useTasks } from '../tasks/queries'
@@ -137,6 +138,9 @@ function FindingForm({ initial }: { initial?: FindingDetail }) {
               {tasks.data?.map((t) => (
                 <option key={t.id} value={t.id}>
                   {t.title}
+                  {t.status === 'todo' && t.startDate && notStartedBy(t, todayInTeamTz())
+                    ? ` (starts ${formatDayHeading(t.startDate)})`
+                    : ''}
                 </option>
               ))}
             </select>

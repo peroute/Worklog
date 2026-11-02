@@ -59,6 +59,8 @@ export interface Task {
   explanation: string | null
   assignedTo: string
   deadline: string | null
+  /** First day it shows on Today ('YYYY-MM-DD'); null = visible right away. */
+  startDate: string | null
   status: TaskStatus
   doneAt: string | null
   /** The assignee's "what I did" note, handed in with the proof files. */
@@ -73,6 +75,7 @@ export interface NewTask {
   explanation: string | null
   assignedTo: string
   deadline: string | null
+  startDate: string | null
 }
 
 /** submitted (waiting for lead) → approved | changes_requested → resubmitted → approved | changes_requested */

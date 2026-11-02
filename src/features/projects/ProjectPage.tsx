@@ -145,7 +145,12 @@ export function ProjectPage() {
           <ul className={`${ui.card} divide-y divide-line overflow-hidden`}>
             {visibleTasks.map((task) => (
               <li key={task.id}>
-                <TaskRow task={task} assigneeName={nameOf(profiles.data, task.assignedTo)} me={me} />
+                <TaskRow
+                  task={task}
+                  assigneeName={nameOf(profiles.data, task.assignedTo)}
+                  creatorName={task.createdBy === task.assignedTo ? undefined : nameOf(profiles.data, task.createdBy)}
+                  me={me}
+                />
               </li>
             ))}
           </ul>

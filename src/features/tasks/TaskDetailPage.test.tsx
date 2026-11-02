@@ -226,4 +226,20 @@ describe('TaskDetailPage', () => {
     renderApp('/tasks/missing')
     expect(await screen.findByRole('alert')).toHaveTextContent('Task not found')
   })
+  it('shows who created it and when it starts, but never when it was created', async () => {
+    vi.mocked(getTask).mockResolvedValue(
+      makeTask({ id: 't1', createdBy: lead.id, startDate: '2099-01-05', createdAt: '2026-11-02T15:00:00Z' }),
+    )
+    renderApp('/tasks/t1')
+    expect(await screen.findByText('From Lead')).toBeInTheDocument()
+    expect(screen.getByText(/^Starts .*Jan 5$/)).toBeInTheDocument()
+    expect(screen.queryByText(/Created|Nov 2/)).not.toBeInTheDocument()
+  })
+
+  it('shows when the work was finished, in Central time', async () => {
+    // 21:42 UTC = 3:42 PM Central (CST) on Nov 10
+    vi.mocked(getTask).mockResolvedValue(makeTask({ id: 't1', status: 'submitted', doneAt: '2026-11-10T21:42:00Z' }))
+    renderApp('/tasks/t1')
+    expect(await screen.findByText('Finished Nov 10, 3:42 PM')).toBeInTheDocument()
+  })
 })

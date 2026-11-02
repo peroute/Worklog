@@ -16,10 +16,20 @@ interface PersonColumnProps {
   isToday: boolean
   me: Profile | undefined
   projectName: (id: string | null) => string | undefined
+  personName: (id: string) => string | undefined
 }
 
 /** One person's day: their task groups, then the findings they logged. */
-export function PersonColumn({ person, tasks, findings, viewedDate, isToday, me, projectName }: PersonColumnProps) {
+export function PersonColumn({
+  person,
+  tasks,
+  findings,
+  viewedDate,
+  isToday,
+  me,
+  projectName,
+  personName,
+}: PersonColumnProps) {
   const headingId = useId()
   const buckets = bucketTasks(tasks, person.id, viewedDate)
   const mine = findings.filter((f) => f.authorId === person.id)
@@ -61,7 +71,12 @@ export function PersonColumn({ person, tasks, findings, viewedDate, isToday, me,
             <ul className="divide-y divide-line">
               {items.map((task) => (
                 <li key={task.id}>
-                  <TaskRow task={task} projectName={projectName(task.projectId)} me={me} />
+                  <TaskRow
+                    task={task}
+                    creatorName={task.createdBy === task.assignedTo ? undefined : personName(task.createdBy)}
+                    projectName={projectName(task.projectId)}
+                    me={me}
+                  />
                 </li>
               ))}
             </ul>
