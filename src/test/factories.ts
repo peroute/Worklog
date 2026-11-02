@@ -18,6 +18,7 @@ export function makeTask(overrides: Partial<Task> = {}): Task {
     deadline: null,
     status: 'todo',
     doneAt: null,
+    submissionNote: null,
     createdBy: lead.id,
     createdAt: '2026-10-20T15:00:00Z',
     ...overrides,
@@ -52,6 +53,7 @@ export function makeAttachment(overrides: Partial<TaskAttachment> = {}): TaskAtt
     sizeBytes: 2048,
     position: 0,
     uploadedBy: lead.id,
+    kind: 'brief',
     url: `https://signed/${id}`,
     ...overrides,
   }

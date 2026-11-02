@@ -14,20 +14,30 @@ import { CommentThread } from '../comments/CommentThread'
 import { useProject } from '../projects/queries'
 import { RequestChangesDialog } from '../review/RequestChangesDialog'
 import { nameOf, useProfiles } from '../team/queries'
-import { useRequestChangesTask, useSetTaskStatus, useTask } from './queries'
-import { TaskAttachments } from './TaskAttachments'
 import { Markdown } from '../../components/Markdown'
+import { AttachmentList } from './AttachmentList'
+import { useRequestChangesTask, useSetTaskStatus, useTask, useTaskAttachments } from './queries'
+import { TaskSubmission, type SubmissionMode } from './TaskSubmission'
 
-// Button label + target status for each simple status action ("requestChanges" opens a dialog instead).
-const ACTIONS: Record<Exclude<TaskAction, 'requestChanges'>, { label: string; to: TaskStatus; primary: boolean }> = {
-  markDone: { label: 'Mark done', to: 'submitted', primary: true },
-  undoDone: { label: 'Undo done', to: 'todo', primary: false },
-  resubmit: { label: 'Resubmit', to: 'resubmitted', primary: true },
+type DirectAction = Exclude<TaskAction, 'requestChanges' | 'markDone' | 'resubmit'>
+
+// Button label + target status for actions that change the status in one click.
+const ACTIONS: Record<DirectAction, { label: string; to: TaskStatus; primary: boolean }> = {
+  undoDone: { label: 'Withdraw submission', to: 'todo', primary: false },
   approve: { label: 'Approve', to: 'approved', primary: true },
   reopen: { label: 'Reopen', to: 'todo', primary: false },
 }
 
-/** A task's own page: details, review actions and the comment thread. */
+// Handing work in opens the submission form (note + proof) instead of flipping the status blindly.
+const SUBMIT_ACTIONS: Partial<Record<TaskAction, { label: string; mode: SubmissionMode }>> = {
+  markDone: { label: 'Submit work', mode: 'submit' },
+  resubmit: { label: 'Resubmit', mode: 'resubmit' },
+}
+
+/**
+ * A task's own page, top to bottom in the order you read it:
+ * what to do (title, details, brief files) → actions → what was done (submission) → discussion.
+ */
 export function TaskDetailPage() {
   const { id = '' } = useParams()
   const location = useLocation()
@@ -35,12 +45,14 @@ export function TaskDetailPage() {
   const failedUploads = (location.state as { failedUploads?: number } | null)?.failedUploads ?? 0
   const { me } = useMe()
   const task = useTask(id)
+  const attachments = useTaskAttachments(id)
   const profiles = useProfiles()
   const projectId = task.data?.projectId ?? ''
   const project = useProject(projectId, { enabled: Boolean(projectId) })
   const setStatus = useSetTaskStatus()
   const requestChanges = useRequestChangesTask()
   const [requestingChanges, setRequestingChanges] = useState(false)
+  const [submissionMode, setSubmissionMode] = useState<SubmissionMode | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   if (task.isPending) return <LoadingState />
@@ -51,6 +63,8 @@ export function TaskDetailPage() {
   const canEdit = me ? canEditContent(me, t.createdBy, t.status === 'approved') : false
   const overdue = isOverdue(t, todayInTeamTz())
   const assignee = nameOf(profiles.data, t.assignedTo)
+  const allAttachments = attachments.data ?? []
+  const brief = allAttachments.filter((a) => a.kind === 'brief')
 
   async function setTo(status: TaskStatus) {
     setError(null)
@@ -89,26 +103,60 @@ export function TaskDetailPage() {
           )}
           <StatusBadge status={t.status} />
         </div>
+
+        {(t.explanation || brief.length > 0) && (
+          <div className="space-y-3 border-t border-line pt-4">
+            {t.explanation && (
+              <div>
+                <h2 className={`${ui.sectionTitle} mb-1.5`}>Details</h2>
+                {/* Markdown without raw HTML: pasted markup shows as text, never runs. */}
+                <Markdown className="text-sm leading-relaxed text-fg">{t.explanation}</Markdown>
+              </div>
+            )}
+            {brief.length > 0 && (
+              <div>
+                <h2 className={`${ui.sectionTitle} mb-1.5`}>
+                  Attachments <span className="text-fg-muted">({brief.length})</span>
+                </h2>
+                <AttachmentList attachments={brief} task={t} me={me} />
+              </div>
+            )}
+          </div>
+        )}
+        {attachments.isError && <ErrorState error={attachments.error} />}
       </header>
 
       <div className="flex flex-wrap gap-2">
-        {actions.map((action) =>
-          action === 'requestChanges' ? (
-            <button key={action} type="button" onClick={() => setRequestingChanges(true)} className={ui.btnSecondary}>
-              Request changes
-            </button>
-          ) : (
+        {actions.map((action) => {
+          if (action === 'requestChanges') {
+            return (
+              <button key={action} type="button" onClick={() => setRequestingChanges(true)} className={ui.btnSecondary}>
+                Request changes
+              </button>
+            )
+          }
+          const submit = SUBMIT_ACTIONS[action]
+          if (submit) {
+            if (submissionMode) return null // the form is already open below
+            return (
+              <button key={action} type="button" onClick={() => setSubmissionMode(submit.mode)} className={ui.btnPrimary}>
+                {submit.label}
+              </button>
+            )
+          }
+          const direct = ACTIONS[action as DirectAction]
+          return (
             <button
               key={action}
               type="button"
               disabled={setStatus.isPending}
-              onClick={() => setTo(ACTIONS[action].to)}
-              className={ACTIONS[action].primary ? ui.btnPrimary : ui.btnSecondary}
+              onClick={() => setTo(direct.to)}
+              className={direct.primary ? ui.btnPrimary : ui.btnSecondary}
             >
-              {ACTIONS[action].label}
+              {direct.label}
             </button>
-          ),
-        )}
+          )
+        })}
         {canEdit && (
           <Link to={`/tasks/${t.id}/edit`} className={ui.btnSecondary}>
             Edit
@@ -116,11 +164,15 @@ export function TaskDetailPage() {
         )}
       </div>
 
-      {t.explanation && (
-        <Markdown className={`${ui.card} p-5 text-sm leading-relaxed text-fg`}>{t.explanation}</Markdown>
+      {attachments.isSuccess && (
+        <TaskSubmission
+          task={t}
+          me={me}
+          attachments={allAttachments}
+          mode={submissionMode}
+          onModeChange={setSubmissionMode}
+        />
       )}
-
-      <TaskAttachments task={t} me={me} />
 
       <CommentThread
         target={{ taskId: t.id }}

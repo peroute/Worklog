@@ -63,6 +63,9 @@ function TaskForm({ initial, initialAttachments = [] }: { initial?: Task; initia
   const [saving, setSaving] = useState(false)
 
   const keptAttachments = initialAttachments.filter((a) => !removed.some((r) => r.id === a.id))
+  // The form edits the brief only. The assignee's proof lives in their submission on the task page,
+  // but still counts toward the per-task file limit (existingCount below uses every kept file).
+  const keptBrief = keptAttachments.filter((a) => a.kind === 'brief')
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault()
@@ -154,9 +157,9 @@ function TaskForm({ initial, initialAttachments = [] }: { initial?: Task; initia
 
         <div className="space-y-2">
           <p className="text-sm font-medium text-fg">Attachments (optional)</p>
-          {keptAttachments.length > 0 && (
+          {keptBrief.length > 0 && (
             <ul className="flex flex-wrap gap-2">
-              {keptAttachments.map((attachment) => (
+              {keptBrief.map((attachment) => (
                 <li key={attachment.id} className="relative">
                   {isImage(attachment.mimeType) ? (
                     <img

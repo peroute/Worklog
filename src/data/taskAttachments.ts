@@ -3,11 +3,11 @@ import { extensionFor, isImage } from './attachmentRules'
 import { DataError, toDataError } from './errors'
 import { SIGNED_URL_TTL_SECONDS } from './limits'
 import { toTaskAttachment, type TaskAttachmentRow } from './mappers'
-import type { TaskAttachment } from './types'
+import type { AttachmentKind, TaskAttachment } from './types'
 
 export const TASK_ATTACHMENT_BUCKET = 'task-attachments'
 
-const COLUMNS = 'id, task_id, storage_path, file_name, mime_type, size_bytes, position, uploaded_by'
+const COLUMNS = 'id, task_id, storage_path, file_name, mime_type, size_bytes, position, uploaded_by, kind'
 
 const bucket = () => supabase.storage.from(TASK_ATTACHMENT_BUCKET)
 
@@ -21,11 +21,13 @@ export interface PendingAttachment {
 /**
  * Uploads attachments one by one; a failure is counted and the rest continue.
  * The DB row is written only after its file exists, so a row never points at nothing.
+ * `kind`: 'brief' for the creator's files, 'proof' for the assignee's (the DB checks who may add which).
  */
 export async function uploadTaskAttachments(
   taskId: string,
   items: PendingAttachment[],
   startPosition: number,
+  kind: AttachmentKind = 'brief',
 ): Promise<{ uploaded: number; failed: number }> {
   let uploaded = 0
   let failed = 0
@@ -47,6 +49,7 @@ export async function uploadTaskAttachments(
       mime_type: item.mimeType,
       size_bytes: item.blob.size,
       position: startPosition + index,
+      kind,
     })
     if (rowError) {
       failed++

@@ -26,6 +26,7 @@ export const tasksModule = {
   createTask: vi.fn(),
   updateTask: vi.fn(),
   setTaskStatus: vi.fn(),
+  submitTask: vi.fn(),
   deleteTask: vi.fn(),
 }
 
