@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { ErrorState } from '../../components/ErrorState'
 import { LoadingState } from '../../components/LoadingState'
+import { MarkdownField } from '../../components/MarkdownField'
 import { FileChip, RemoveBadge } from '../../components/FileDropzone'
 import { ui } from '../../components/ui'
 import { isImage } from '../../data/attachmentRules'
@@ -147,21 +148,7 @@ function TaskForm({ initial, initialAttachments = [] }: { initial?: Task; initia
           {errors.title && <span className={ui.fieldError}>{errors.title}</span>}
         </label>
 
-        <div>
-          <label className={ui.label}>
-            Explanation
-            <textarea
-              value={explanation}
-              onChange={(e) => setExplanation(e.target.value)}
-              rows={5}
-              aria-describedby="explanation-hint"
-              className={ui.input}
-            />
-          </label>
-          <p id="explanation-hint" className="mt-1 text-xs text-fg-subtle">
-            Markdown supported: **bold**, - lists, [links](url), `code`
-          </p>
-        </div>
+        <MarkdownField label="Explanation" value={explanation} onChange={setExplanation} rows={5} />
 
         <label className={`${ui.label} sm:w-1/2`}>
           Deadline (optional)
