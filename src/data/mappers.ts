@@ -1,6 +1,7 @@
 // Translate database rows (snake_case) to app types (camelCase) and back.
 // This is the seam a future FastAPI backend would replace.
 import type {
+  AttachmentKind,
   Comment,
   Finding,
   FindingImage,
@@ -44,6 +45,7 @@ export interface TaskRow {
   deadline: string | null
   status: TaskStatus
   done_at: string | null
+  submission_note: string | null
   created_by: string
   created_at: string
 }
@@ -79,6 +81,7 @@ export interface TaskAttachmentRow {
   size_bytes: number
   position: number
   uploaded_by: string
+  kind: AttachmentKind
 }
 
 export interface CommentRow {
@@ -124,6 +127,7 @@ export const toTask = (r: TaskRow): Task => ({
   deadline: r.deadline,
   status: r.status,
   doneAt: r.done_at,
+  submissionNote: r.submission_note,
   createdBy: r.created_by,
   createdAt: r.created_at,
 })
@@ -159,6 +163,7 @@ export const toTaskAttachment = (r: TaskAttachmentRow, url: string): TaskAttachm
   sizeBytes: r.size_bytes,
   position: r.position,
   uploadedBy: r.uploaded_by,
+  kind: r.kind,
   url,
 })
 

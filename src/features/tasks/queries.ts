@@ -6,8 +6,17 @@ import {
   type PendingAttachment,
 } from '../../data/taskAttachments'
 import { prepareAttachment } from './prepareAttachment'
-import { createTask, deleteTask, getTask, listTasks, requestChangesTask, setTaskStatus, updateTask } from '../../data/tasks'
-import type { NewTask, TaskAttachment, TaskStatus } from '../../data/types'
+import {
+  createTask,
+  deleteTask,
+  getTask,
+  listTasks,
+  requestChangesTask,
+  setTaskStatus,
+  submitTask,
+  updateTask,
+} from '../../data/tasks'
+import type { AttachmentKind, NewTask, TaskAttachment, TaskStatus } from '../../data/types'
 
 type TaskFilter = Parameters<typeof listTasks>[0]
 
@@ -95,16 +104,45 @@ export function useDeleteTask() {
   })
 }
 
+interface SubmitWorkArgs {
+  note: string | null
+  files: File[]
+  /** Position for the first new file (after the ones already saved). */
+  startPosition: number
+  /** Status to move to, or null to only save the note/files (editing a submission). */
+  status: 'submitted' | 'resubmitted' | null
+  /** false after approval for non-leads: the DB freezes the note, so only files are added. */
+  saveNote: boolean
+}
+
 /**
- * Adds files to an existing task from its page (the assignee's proof of work, or more brief).
- * Positions continue after the highest saved one so order stays stable.
+ * The assignee hands in their work: proof files first, then note + status together.
+ * If any file fails, we stop BEFORE changing the status, so the lead never reviews a
+ * half-uploaded submission. Files that did upload stay saved and show on retry.
  */
+export function useSubmitWork(taskId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ note, files, startPosition, status, saveNote }: SubmitWorkArgs) => {
+      const prepared = await Promise.all(files.map((file) => prepareAttachment(file)))
+      const { failed } = await uploadTaskAttachments(taskId, prepared, startPosition, 'proof')
+      if (failed > 0) {
+        throw new Error(`${failed} file(s) failed to upload, so nothing was submitted. Try again.`)
+      }
+      if (saveNote || status) await submitTask(taskId, { note: saveNote ? note : undefined, status })
+    },
+    // Invalidate on failure too: some files may have uploaded before one failed.
+    onSettled: () => invalidateTaskViews(queryClient),
+  })
+}
+
+/** Adds files of one kind to an existing task. Positions continue after the highest saved one. */
 export function useAddTaskAttachments(taskId: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async ({ files, startPosition }: { files: File[]; startPosition: number }) => {
+    mutationFn: async ({ files, startPosition, kind }: { files: File[]; startPosition: number; kind: AttachmentKind }) => {
       const prepared = await Promise.all(files.map((file) => prepareAttachment(file)))
-      return uploadTaskAttachments(taskId, prepared, startPosition)
+      return uploadTaskAttachments(taskId, prepared, startPosition, kind)
     },
     onSuccess: () => invalidateTaskViews(queryClient),
   })

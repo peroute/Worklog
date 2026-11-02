@@ -63,17 +63,17 @@ reset role;
 select pg_temp.login_as('cccccccc-cccc-cccc-cccc-cccccccccccc');
 set local role authenticated;
 -- 8-9: attaches proof of work (row + file)
-select lives_ok($$ insert into public.task_attachments (id, task_id, storage_path, file_name, mime_type, size_bytes)
+select lives_ok($$ insert into public.task_attachments (id, task_id, storage_path, file_name, mime_type, size_bytes, kind)
                    values ('a0000000-0000-0000-0000-000000000002', '11111111-0000-0000-0000-000000000001',
-                           'tasks/11111111-0000-0000-0000-000000000001/proof.webp', 'proof.webp', 'image/webp', 1000) $$,
+                           'tasks/11111111-0000-0000-0000-000000000001/proof.webp', 'proof.webp', 'image/webp', 1000, 'proof') $$,
                 'assignee can attach proof of work');
 select lives_ok($$ insert into storage.objects (bucket_id, name)
                    values ('task-attachments', 'tasks/11111111-0000-0000-0000-000000000001/proof.webp') $$,
                 'assignee can upload into their task''s folder');
 -- 10: adding still works after approval, but removing their own file does not
-insert into public.task_attachments (id, task_id, storage_path, file_name, mime_type, size_bytes)
+insert into public.task_attachments (id, task_id, storage_path, file_name, mime_type, size_bytes, kind)
 values ('a0000000-0000-0000-0000-000000000003', '11111111-0000-0000-0000-000000000002',
-        'tasks/11111111-0000-0000-0000-000000000002/late.webp', 'late.webp', 'image/webp', 1000);
+        'tasks/11111111-0000-0000-0000-000000000002/late.webp', 'late.webp', 'image/webp', 1000, 'proof');
 delete from public.task_attachments where id = 'a0000000-0000-0000-0000-000000000003';
 select is((select count(*)::int from public.task_attachments where id = 'a0000000-0000-0000-0000-000000000003'), 1,
           'assignee can attach to an approved task but not remove from it');

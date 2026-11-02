@@ -5,7 +5,7 @@ import { listComments } from '../../data/comments'
 import { getMyProfile, listProfiles } from '../../data/profiles'
 import { getProject } from '../../data/projects'
 import { deleteTaskAttachment, listTaskAttachments, uploadTaskAttachments } from '../../data/taskAttachments'
-import { getTask, requestChangesTask, setTaskStatus } from '../../data/tasks'
+import { getTask, requestChangesTask, setTaskStatus, submitTask } from '../../data/tasks'
 import type { Profile, TaskStatus } from '../../data/types'
 import { hedi, khaushik, lead, makeAttachment, makeTask } from '../../test/factories'
 import { auth } from '../../test/mockAuth'
@@ -35,6 +35,9 @@ function signInAs(profile: Profile) {
   vi.mocked(getMyProfile).mockResolvedValue(profile)
 }
 
+/** The header card that holds the title, details and brief. */
+const headerCard = () => screen.getByRole('heading', { level: 1 }).closest('header') as HTMLElement
+
 describe('TaskDetailPage', () => {
   beforeEach(() => {
     signInAs(hedi)
@@ -47,15 +50,18 @@ describe('TaskDetailPage', () => {
       createdAt: '',
     })
     vi.mocked(listComments).mockResolvedValue([])
-    // clearAllMocks keeps return values between tests, so reset this one explicitly.
+    // clearAllMocks keeps return values between tests, so reset these explicitly.
     vi.mocked(listTaskAttachments).mockResolvedValue([])
+    vi.mocked(uploadTaskAttachments).mockResolvedValue({ uploaded: 0, failed: 0 })
   })
 
-  it('shows the task with its status, explanation and thread', async () => {
+  it('shows the task with its details under the title, its status and thread', async () => {
     vi.mocked(getTask).mockResolvedValue(task('submitted'))
     renderApp('/tasks/t1')
     expect(await screen.findByRole('heading', { level: 1, name: 'Retest login' })).toBeInTheDocument()
-    expect(screen.getByText('Android 13').closest('.markdown')).not.toBeNull()
+    // The details sit in the header card right under the title, not floating below the buttons.
+    expect(within(headerCard()).getByRole('heading', { name: 'Details' })).toBeInTheDocument()
+    expect(within(headerCard()).getByText('Android 13')).toHaveClass('whitespace-pre-wrap')
     expect(screen.getByText('Submitted')).toBeInTheDocument()
     expect(screen.getByRole('region', { name: 'Comments' })).toBeInTheDocument()
   })
@@ -81,96 +87,137 @@ describe('TaskDetailPage', () => {
     expect(requestChangesTask).toHaveBeenCalledWith('t1', 'Also Android 14')
   })
 
-  it('lets the assignee mark a sent-back task fixed, but not approve it', async () => {
-    vi.mocked(getTask).mockResolvedValue(task('changes_requested'))
-    vi.mocked(setTaskStatus).mockResolvedValue(task('resubmitted'))
-    renderApp('/tasks/t1')
-    await userEvent.click(await screen.findByRole('button', { name: 'Resubmit' }))
-    expect(setTaskStatus).toHaveBeenCalledWith('t1', 'resubmitted')
-    expect(screen.queryByRole('button', { name: 'Approve' })).not.toBeInTheDocument()
-  })
-
   // In these tests the lead created the task and Hedi (signed in by default) is the assignee.
   const brief = makeAttachment({
     id: 'a1', taskId: 't1', fileName: 'test-plan.pdf', sizeBytes: 1_258_291, position: 0,
-    uploadedBy: lead.id, url: 'https://signed/b?download=test-plan.pdf',
+    uploadedBy: lead.id, kind: 'brief', url: 'https://signed/b?download=test-plan.pdf',
   })
   const proof = makeAttachment({
     id: 'a2', taskId: 't1', fileName: 'done.webp', mimeType: 'image/webp', position: 1,
-    uploadedBy: hedi.id, url: 'https://signed/a',
+    uploadedBy: hedi.id, kind: 'proof', url: 'https://signed/a',
   })
 
-  it('shows images as thumbnails, documents as downloads, and who added each', async () => {
+  it('lets the assignee hand in an explanation plus proof in one go', async () => {
     vi.mocked(getTask).mockResolvedValue(task('todo'))
+    vi.mocked(listTaskAttachments).mockResolvedValue([brief])
+    vi.mocked(uploadTaskAttachments).mockResolvedValue({ uploaded: 1, failed: 0 })
+    vi.mocked(submitTask).mockResolvedValue(task('submitted'))
+    renderApp('/tasks/t1')
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Submit work' }))
+    const form = screen.getByRole('region', { name: 'Submit your work' })
+    await userEvent.type(within(form).getByLabelText('What did you do?'), 'Passes on Android 13')
+    await userEvent.upload(
+      within(form).getByLabelText('Add files'),
+      new File(['%PDF'], 'results.pdf', { type: 'application/pdf' }),
+    )
+    await userEvent.click(within(form).getByRole('button', { name: 'Submit for review' }))
+
+    // Proof goes after the brief (position 0) and is tagged as proof.
+    expect(uploadTaskAttachments).toHaveBeenCalledWith(
+      't1',
+      [{ blob: expect.any(File), fileName: 'results.pdf', mimeType: 'application/pdf' }],
+      1,
+      'proof',
+    )
+    expect(submitTask).toHaveBeenCalledWith('t1', { note: 'Passes on Android 13', status: 'submitted' })
+    expect(setTaskStatus).not.toHaveBeenCalled()
+  })
+
+  it('does not submit when a proof file fails to upload', async () => {
+    vi.mocked(getTask).mockResolvedValue(task('todo'))
+    vi.mocked(uploadTaskAttachments).mockResolvedValue({ uploaded: 0, failed: 1 })
+    renderApp('/tasks/t1')
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Submit work' }))
+    await userEvent.upload(screen.getByLabelText('Add files'), new File(['x'], 'log.txt', { type: 'text/plain' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Submit for review' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('nothing was submitted')
+    expect(submitTask).not.toHaveBeenCalled()
+  })
+
+  it('reopens the form with the previous note when resubmitting, and cannot approve', async () => {
+    vi.mocked(getTask).mockResolvedValue({ ...task('changes_requested'), submissionNote: 'First try' })
+    vi.mocked(submitTask).mockResolvedValue(task('resubmitted'))
+    renderApp('/tasks/t1')
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Resubmit' }))
+    const note = screen.getByLabelText('What did you do?')
+    expect(note).toHaveValue('First try')
+    await userEvent.type(note, ', fixed Android 14')
+    await userEvent.click(screen.getByRole('button', { name: 'Resubmit for review' }))
+
+    expect(submitTask).toHaveBeenCalledWith('t1', { note: 'First try, fixed Android 14', status: 'resubmitted' })
+    expect(screen.queryByRole('button', { name: 'Approve' })).not.toBeInTheDocument()
+  })
+
+  it('shows the lead the submission (who, explanation, proof) apart from the brief', async () => {
+    signInAs(lead)
+    vi.mocked(getTask).mockResolvedValue({
+      ...task('submitted'),
+      submissionNote: 'Tested on two devices',
+      doneAt: '2026-11-02T15:00:00Z',
+    })
     vi.mocked(listTaskAttachments).mockResolvedValue([brief, proof])
     renderApp('/tasks/t1')
 
-    const section = await screen.findByRole('region', { name: 'Attachments (2)' })
-    expect(within(section).getByRole('img', { name: 'done.webp' })).toHaveAttribute('src', 'https://signed/a')
-    expect(within(section).getByRole('link', { name: 'Download test-plan.pdf' })).toHaveAttribute(
+    const submission = await screen.findByRole('region', { name: 'Submission' })
+    expect(within(submission).getByText('Hedi')).toBeInTheDocument()
+    expect(within(submission).getByText('Tested on two devices')).toBeInTheDocument()
+    expect(within(submission).getByRole('img', { name: 'done.webp' })).toHaveAttribute('src', 'https://signed/a')
+    expect(within(submission).queryByText('test-plan.pdf')).not.toBeInTheDocument()
+
+    // The brief stays with the task's details, as a download.
+    expect(within(headerCard()).getByRole('link', { name: 'Download test-plan.pdf' })).toHaveAttribute(
       'href',
       'https://signed/b?download=test-plan.pdf',
     )
-    expect(within(section).getByText('1.2 MB · Added by Lead')).toBeInTheDocument()
-    expect(within(section).getByText('Added by you')).toBeInTheDocument()
+    expect(within(headerCard()).getByText('1.2 MB')).toBeInTheDocument()
   })
 
   it('lets the assignee remove their own proof, but not the brief', async () => {
-    vi.mocked(getTask).mockResolvedValue(task('todo'))
+    vi.mocked(getTask).mockResolvedValue(task('submitted'))
     vi.mocked(listTaskAttachments).mockResolvedValue([brief, proof])
     vi.mocked(deleteTaskAttachment).mockResolvedValue()
     renderApp('/tasks/t1')
 
-    await screen.findByRole('region', { name: 'Attachments (2)' })
+    await screen.findByRole('region', { name: 'Submission' })
     expect(screen.queryByRole('button', { name: 'Remove test-plan.pdf' })).not.toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Remove done.webp' }))
     await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Remove' }))
     expect(deleteTaskAttachment).toHaveBeenCalledWith(proof)
   })
 
-  it('lets the assignee add proof of work from the task page', async () => {
-    vi.mocked(getTask).mockResolvedValue(task('submitted'))
-    vi.mocked(listTaskAttachments).mockResolvedValue([brief])
+  it('lets the assignee edit a submission while it waits for review, without changing the status', async () => {
+    vi.mocked(getTask).mockResolvedValue({ ...task('submitted'), submissionNote: 'Done' })
+    vi.mocked(submitTask).mockResolvedValue(task('submitted'))
     renderApp('/tasks/t1')
 
-    await userEvent.click(await screen.findByRole('button', { name: 'Add proof of work' }))
-    await userEvent.upload(
-      screen.getByLabelText('Add files'),
-      new File(['%PDF'], 'results.pdf', { type: 'application/pdf' }),
-    )
-    await userEvent.click(screen.getByRole('button', { name: 'Upload 1' }))
-
-    // goes after the brief (position 0), so the order stays stable
-    expect(uploadTaskAttachments).toHaveBeenCalledWith(
-      't1',
-      [{ blob: expect.any(File), fileName: 'results.pdf', mimeType: 'application/pdf' }],
-      1,
-    )
+    await userEvent.click(await screen.findByRole('button', { name: 'Edit submission' }))
+    await userEvent.type(screen.getByLabelText('What did you do?'), ' on Android 13')
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }))
+    expect(submitTask).toHaveBeenCalledWith('t1', { note: 'Done on Android 13', status: null })
   })
 
-  it('invites the assignee to add proof even when there are no attachments yet', async () => {
-    vi.mocked(getTask).mockResolvedValue(task('todo'))
-    renderApp('/tasks/t1')
-    const section = await screen.findByRole('region', { name: 'Attachments (0)' })
-    expect(within(section).getByText(/Optional: attach screenshots or files/)).toBeInTheDocument()
-  })
-
-  it('after approval, still allows adding files but not removing them', async () => {
-    vi.mocked(getTask).mockResolvedValue(task('approved'))
+  it('after approval, the assignee can add proof but not rewrite the note or remove files', async () => {
+    vi.mocked(getTask).mockResolvedValue({ ...task('approved'), submissionNote: 'Done' })
     vi.mocked(listTaskAttachments).mockResolvedValue([brief, proof])
     renderApp('/tasks/t1')
-    await screen.findByRole('region', { name: 'Attachments (2)' })
-    expect(screen.getByRole('button', { name: 'Add proof of work' })).toBeInTheDocument()
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Add proof' }))
+    expect(screen.queryByLabelText('What did you do?')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Add files')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /^Remove / })).not.toBeInTheDocument()
   })
 
-  it('shows nothing to someone not on the task when there are no attachments', async () => {
+  it('shows no submission until the work is handed in', async () => {
     signInAs(khaushik)
     vi.mocked(getTask).mockResolvedValue(task('todo'))
     renderApp('/tasks/t1')
     await screen.findByRole('heading', { level: 1, name: 'Retest login' })
     expect(listTaskAttachments).toHaveBeenCalledWith('t1')
-    expect(screen.queryByRole('region', { name: /Attachments/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Submission' })).not.toBeInTheDocument()
   })
 
   it('reports a missing task', async () => {
