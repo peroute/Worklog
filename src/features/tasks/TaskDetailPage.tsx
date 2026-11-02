@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useLocation, useParams } from 'react-router-dom'
 import { Avatar } from '../../components/Avatar'
 import { ErrorState } from '../../components/ErrorState'
 import { LoadingState } from '../../components/LoadingState'
@@ -15,6 +15,7 @@ import { useProject } from '../projects/queries'
 import { SendBackDialog } from '../review/SendBackDialog'
 import { nameOf, useProfiles } from '../team/queries'
 import { useSendBackTask, useSetTaskStatus, useTask } from './queries'
+import { TaskAttachments } from './TaskAttachments'
 
 // Button label + target status for each simple status action ("sendBack" opens a dialog instead).
 const ACTIONS: Record<Exclude<TaskAction, 'sendBack'>, { label: string; to: TaskStatus; primary: boolean }> = {
@@ -28,6 +29,9 @@ const ACTIONS: Record<Exclude<TaskAction, 'sendBack'>, { label: string; to: Task
 /** A task's own page: details, review actions and the comment thread. */
 export function TaskDetailPage() {
   const { id = '' } = useParams()
+  const location = useLocation()
+  // Set by the task form when some attachments didn't upload (the task itself was saved).
+  const failedUploads = (location.state as { failedUploads?: number } | null)?.failedUploads ?? 0
   const { me } = useMe()
   const task = useTask(id)
   const profiles = useProfiles()
@@ -58,6 +62,11 @@ export function TaskDetailPage() {
 
   return (
     <article className="mx-auto max-w-3xl space-y-6">
+      {failedUploads > 0 && (
+        <p role="alert" className="rounded-lg border border-open-edge/40 bg-open-soft px-3 py-2.5 text-sm text-open">
+          {failedUploads} attachment(s) failed to upload. Edit the task to retry.
+        </p>
+      )}
       {error && <ErrorState error={new Error(error)} />}
 
       <header className={`${ui.card} space-y-3 p-5 ${statusEdge(t.status, overdue)}`}>
@@ -109,6 +118,8 @@ export function TaskDetailPage() {
       {t.explanation && (
         <p className={`${ui.card} p-5 text-sm leading-relaxed text-fg whitespace-pre-wrap`}>{t.explanation}</p>
       )}
+
+      <TaskAttachments taskId={t.id} />
 
       <CommentThread
         target={{ taskId: t.id }}

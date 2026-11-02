@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabase'
 import { DataError, toDataError } from './errors'
 import { listImagePaths, removeStoredFiles } from './images'
+import { listTaskAttachmentPaths, removeTaskAttachmentFiles } from './taskAttachments'
 import { toProject, toProjectSummary, type ProjectRow, type ProjectSummaryRow } from './mappers'
 import type { Project, ProjectSummary } from './types'
 
@@ -59,7 +60,7 @@ export async function getProjectDeleteCounts(
 }
 
 /**
- * Deletes a project with its tasks, findings and screenshots (lead only).
+ * Deletes a project with its tasks, findings, screenshots and task attachments (lead only).
  * Order: collect file paths → delete rows (permission enforced here) → remove files.
  * If we removed files first, a refused delete would still destroy screenshots.
  */
@@ -67,10 +68,13 @@ export async function deleteProject(id: string): Promise<void> {
   const { data: findingRows, error: findingsError } = await supabase.from('findings').select('id').eq('project_id', id)
   if (findingsError) throw toDataError(findingsError)
   const paths = await listImagePaths((findingRows as { id: string }[]).map((f) => f.id))
+  const { data: taskRows, error: tasksError } = await supabase.from('tasks').select('id').eq('project_id', id)
+  if (tasksError) throw toDataError(tasksError)
+  const attachmentPaths = await listTaskAttachmentPaths((taskRows as { id: string }[]).map((t) => t.id))
 
   const { data, error } = await supabase.from('projects').delete().eq('id', id).select('id')
   if (error) throw toDataError(error)
   if (!data || data.length === 0) throw new DataError('Only the lead can delete projects')
 
-  await removeStoredFiles(paths)
+  await Promise.all([removeStoredFiles(paths), removeTaskAttachmentFiles(attachmentPaths)])
 }

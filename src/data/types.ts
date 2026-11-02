@@ -23,6 +23,22 @@ export interface ProjectSummary extends Project {
   openTasks: number
 }
 
+/** A file attached to a task (screenshot or document). */
+export interface TaskAttachment {
+  id: string
+  taskId: string
+  storagePath: string
+  fileName: string
+  mimeType: string
+  sizeBytes: number
+  position: number
+  /**
+   * Short-lived signed URL. Images open inline; documents carry a download flag so the
+   * browser saves them under their original name instead of rendering them.
+   */
+  url: string
+}
+
 /** todo → done (waiting for lead) → approved | needs_review → fixed → approved | needs_review */
 export type TaskStatus = 'todo' | 'done' | 'needs_review' | 'fixed' | 'approved'
 

@@ -45,6 +45,15 @@ export const commentsModule = {
   addComment: vi.fn(),
 }
 
+export const taskAttachmentsModule = {
+  TASK_ATTACHMENT_BUCKET: 'task-attachments',
+  uploadTaskAttachments: vi.fn(async () => ({ uploaded: 0, failed: 0 })),
+  listTaskAttachments: vi.fn(async () => []),
+  deleteTaskAttachment: vi.fn(),
+  listTaskAttachmentPaths: vi.fn(async () => []),
+  removeTaskAttachmentFiles: vi.fn(),
+}
+
 export const imagesModule = {
   uploadFindingImages: vi.fn(),
   deleteFindingImage: vi.fn(),
