@@ -16,12 +16,14 @@ const FINISHED: Task['status'][] = ['submitted', 'resubmitted', 'approved']
  * Splits one person's tasks into the Today-column groups for `viewedDate`.
  * Open groups hold `todo` tasks (current status); `completed` = finished (submitted, resubmitted or
  * approved) with `done_at` on the viewed Central day. Date strings compare as text.
+ * Open work with a start day after `viewedDate` is left out: it hasn't started yet.
  */
 export function bucketTasks(tasks: Task[], personId: string, viewedDate: string): TaskBuckets {
   const buckets: TaskBuckets = { changesRequested: [], dueOrOverdue: [], upcoming: [], noDeadline: [], completed: [] }
 
   for (const task of tasks) {
     if (task.assignedTo !== personId) continue
+    if (task.status === 'todo' && notStartedBy(task, viewedDate)) continue
 
     if (task.status === 'changes_requested') {
       buckets.changesRequested.push(task)
@@ -36,6 +38,11 @@ export function bucketTasks(tasks: Task[], personId: string, viewedDate: string)
     }
   }
   return buckets
+}
+
+/** Has a start day later than `day`, so it shouldn't be worked on yet. */
+export function notStartedBy(task: Task, day: string): boolean {
+  return task.startDate !== null && task.startDate > day
 }
 
 /** To do, with a deadline strictly before `today` (due today is not overdue yet). */

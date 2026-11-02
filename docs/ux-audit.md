@@ -122,6 +122,7 @@ Button → "Request changes"; `send_back_*()` RPCs → `request_changes_*()`; fi
 **Where:** `src/features/tasks/TaskDetailPage.tsx`
 
 **Fix:** add a "Linked findings" section (`useFindings` filtered by `taskId`) and a meta line with creator, created date, `doneAt`.
+**Partial:** meta line done ("From <creator> · Starts/Started <start day> · Finished <doneAt>"; created date left out on purpose, the start day replaces it). "Linked findings" section still to do.
 
 - [ ] **2e. Linked task on a finding isn't clickable**
 **Where:** `src/features/findings/FindingDetailPage.tsx:84`

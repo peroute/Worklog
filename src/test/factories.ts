@@ -16,6 +16,7 @@ export function makeTask(overrides: Partial<Task> = {}): Task {
     explanation: null,
     assignedTo: hedi.id,
     deadline: null,
+    startDate: null,
     status: 'todo',
     doneAt: null,
     submissionNote: null,

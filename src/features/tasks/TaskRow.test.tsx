@@ -76,4 +76,18 @@ describe('TaskRow with the review flow', () => {
     await userEvent.click(screen.getByRole('checkbox', { name: 'Mark “Waiting” done' }))
     expect(setTaskStatus).toHaveBeenCalledWith('t2', 'todo')
   })
+  it('labels a task that has not started yet with its start day', () => {
+    renderWithProviders(<TaskRow task={makeTask({ startDate: '2026-11-03' })} me={hedi} />)
+    expect(screen.getByText('Starts Tue, Nov 3')).toBeInTheDocument()
+  })
+
+  it('drops the start label once the start day has come', () => {
+    renderWithProviders(<TaskRow task={makeTask({ startDate: '2026-10-29' })} me={hedi} />)
+    expect(screen.queryByText(/^Starts/)).not.toBeInTheDocument()
+  })
+
+  it('shows who created the task', () => {
+    renderWithProviders(<TaskRow task={makeTask({ createdBy: lead.id })} creatorName="Lead" me={hedi} />)
+    expect(screen.getByText('From Lead')).toBeInTheDocument()
+  })
 })

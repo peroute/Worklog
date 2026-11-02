@@ -6,9 +6,9 @@ import { LoadingState } from '../../components/LoadingState'
 import { StatusBadge } from '../../components/StatusBadge'
 import { statusEdge, ui } from '../../components/ui'
 import type { TaskStatus } from '../../data/types'
-import { isOverdue } from '../../domain/bucketTasks'
+import { isOverdue, notStartedBy } from '../../domain/bucketTasks'
 import { canComment, canEditContent, taskActions, type TaskAction } from '../../domain/permissions'
-import { formatDayHeading, todayInTeamTz } from '../../lib/dates'
+import { formatDateTime, formatDayHeading, todayInTeamTz } from '../../lib/dates'
 import { useMe } from '../auth/useMe'
 import { CommentThread } from '../comments/CommentThread'
 import { useProject } from '../projects/queries'
@@ -61,10 +61,14 @@ export function TaskDetailPage() {
   const t = task.data
   const actions = me ? taskActions(me, t) : []
   const canEdit = me ? canEditContent(me, t.createdBy, t.status === 'approved') : false
-  const overdue = isOverdue(t, todayInTeamTz())
+  const today = todayInTeamTz()
+  const overdue = isOverdue(t, today)
   const assignee = nameOf(profiles.data, t.assignedTo)
   const allAttachments = attachments.data ?? []
   const brief = allAttachments.filter((a) => a.kind === 'brief')
+  // Deliberately no "created" date: a task planned a week ahead should read as starting on its
+  // start day, not as something that's been sitting there since it was typed up.
+  const creator = nameOf(profiles.data, t.createdBy)
 
   async function setTo(status: TaskStatus) {
     setError(null)
@@ -102,6 +106,15 @@ export function TaskDetailPage() {
             </span>
           )}
           <StatusBadge status={t.status} />
+        </div>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-fg-muted">
+          <span>From {creator}</span>
+          {t.startDate && (
+            <span>
+              {notStartedBy(t, today) ? 'Starts' : 'Started'} {formatDayHeading(t.startDate)}
+            </span>
+          )}
+          {t.doneAt && <span>Finished {formatDateTime(t.doneAt)}</span>}
         </div>
 
         {(t.explanation || brief.length > 0) && (

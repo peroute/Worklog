@@ -8,6 +8,7 @@ import { ui } from '../../components/ui'
 import { isImage } from '../../data/attachmentRules'
 import type { NewTask, Task, TaskAttachment } from '../../data/types'
 import { canEditContent, canRemoveTaskAttachment } from '../../domain/permissions'
+import { todayInTeamTz } from '../../lib/dates'
 import { useMe } from '../auth/useMe'
 import { useProjects } from '../projects/queries'
 import { useProfiles } from '../team/queries'
@@ -38,13 +39,18 @@ function EditTask({ id }: { id: string }) {
   return <TaskForm initial={task} initialAttachments={attachments.data} />
 }
 
-type FieldErrors = Partial<Record<'title' | 'assignee', string>>
+type FieldErrors = Partial<Record<'title' | 'assignee' | 'deadline', string>>
+
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
 
 function TaskForm({ initial, initialAttachments = [] }: { initial?: Task; initialAttachments?: TaskAttachment[] }) {
   const navigate = useNavigate()
   const { me } = useMe()
   const [searchParams] = useSearchParams()
   const fromProject = searchParams.get('projectId')
+  // "+ Assign task" on Today passes the day being viewed; anywhere else the task starts today.
+  const startParam = searchParams.get('start')
+  const defaultStart = startParam && ISO_DATE.test(startParam) ? startParam : todayInTeamTz()
   const projects = useProjects()
   const profiles = useProfiles()
   const createTask = useCreateTask()
@@ -55,6 +61,8 @@ function TaskForm({ initial, initialAttachments = [] }: { initial?: Task; initia
   const [assignedTo, setAssignedTo] = useState(initial?.assignedTo ?? '')
   const [explanation, setExplanation] = useState(initial?.explanation ?? '')
   const [deadline, setDeadline] = useState(initial?.deadline ?? '')
+  // Old tasks have no start day (visible right away); keep it empty for them rather than invent one.
+  const [startDate, setStartDate] = useState(initial ? (initial.startDate ?? '') : defaultStart)
   const [newFiles, setNewFiles] = useState<File[]>([])
   // Saved attachments the user clicked × on. Only deleted on Save, so Cancel undoes it.
   const [removed, setRemoved] = useState<TaskAttachment[]>([])
@@ -72,6 +80,8 @@ function TaskForm({ initial, initialAttachments = [] }: { initial?: Task; initia
     const found: FieldErrors = {}
     if (!title.trim()) found.title = 'Title is required'
     if (!assignedTo) found.assignee = 'Assignee is required'
+    // Same 'YYYY-MM-DD' format on both sides, so text comparison is date comparison.
+    if (startDate && deadline && deadline < startDate) found.deadline = "Deadline can't be before the start day"
     setErrors(found)
     if (Object.keys(found).length > 0) return
 
@@ -81,6 +91,7 @@ function TaskForm({ initial, initialAttachments = [] }: { initial?: Task; initia
       assignedTo,
       explanation: explanation.trim() ? explanation : null,
       deadline: deadline || null, // empty date input = no deadline
+      startDate: startDate || null, // empty = visible right away
     }
 
     setSubmitError(null)
@@ -150,10 +161,29 @@ function TaskForm({ initial, initialAttachments = [] }: { initial?: Task; initia
 
         <MarkdownField label="Explanation" value={explanation} onChange={setExplanation} rows={5} />
 
-        <label className={`${ui.label} sm:w-1/2`}>
-          Deadline (optional)
-          <input type="date" value={deadline} onChange={(e) => setDeadline(e.target.value)} className={ui.input} />
-        </label>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label className={ui.label}>
+              Start day
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                aria-describedby="start-hint"
+                className={ui.input}
+              />
+            </label>
+            <p id="start-hint" className="mt-1 text-xs text-fg-subtle">
+              Shows on Today from this day on
+            </p>
+          </div>
+
+          <label className={ui.label}>
+            Deadline (optional)
+            <input type="date" value={deadline} onChange={(e) => setDeadline(e.target.value)} className={ui.input} />
+            {errors.deadline && <span className={ui.fieldError}>{errors.deadline}</span>}
+          </label>
+        </div>
 
         <div className="space-y-2">
           <p className="text-sm font-medium text-fg">Attachments (optional)</p>

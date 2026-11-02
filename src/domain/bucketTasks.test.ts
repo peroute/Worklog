@@ -74,3 +74,32 @@ describe('bucketTasks with the review flow', () => {
     expect(buckets.completed.map((t) => t.title)).toEqual(['waiting', 'resubmitted', 'approved'])
   })
 })
+
+describe('bucketTasks with a start day', () => {
+  const startsTomorrow = makeTask({ title: 'starts tomorrow', startDate: '2026-10-30' })
+  const startsToday = makeTask({ title: 'starts today', startDate: '2026-10-29', deadline: '2026-11-05' })
+  const started = makeTask({ title: 'started', startDate: '2026-10-20' })
+  // Finished early (before its start day): still shows as completed on the day it was finished.
+  const finishedEarly = makeTask({
+    title: 'finished early',
+    startDate: '2026-11-03',
+    status: 'submitted',
+    doneAt: '2026-10-29T15:00:00Z',
+  })
+
+  const buckets = bucketTasks([startsTomorrow, startsToday, started, finishedEarly], hedi.id, viewed)
+  const all = Object.values(buckets).flat().map((t) => t.title)
+
+  it('hides an open task until the viewed day reaches its start day', () => {
+    expect(all).not.toContain('starts tomorrow')
+  })
+
+  it('shows a task from its start day on, grouped as usual', () => {
+    expect(buckets.upcoming.map((t) => t.title)).toEqual(['starts today'])
+    expect(buckets.noDeadline.map((t) => t.title)).toEqual(['started'])
+  })
+
+  it('still counts work finished before its start day as completed', () => {
+    expect(buckets.completed.map((t) => t.title)).toEqual(['finished early'])
+  })
+})
