@@ -51,7 +51,7 @@ describe('ProjectPage', () => {
         title: 'Login crash',
         explanation: 'Steps:\n1. Fresh install\n2. App closes',
         findingDate: '2026-10-29',
-        status: 'open',
+        status: 'submitted',
         authorId: hedi.id,
         imageCount: 2,
       }),
@@ -60,10 +60,10 @@ describe('ProjectPage', () => {
         title: 'Push delay',
         explanation: 'Median 31s',
         findingDate: '2026-10-29',
-        status: 'closed',
+        status: 'approved',
         authorId: khaushik.id,
       }),
-      makeFinding({ title: 'Button misaligned', findingDate: '2026-10-28', status: 'open', authorId: hedi.id }),
+      makeFinding({ title: 'Button misaligned', findingDate: '2026-10-28', status: 'submitted', authorId: hedi.id }),
     ])
   })
 
@@ -78,7 +78,7 @@ describe('ProjectPage', () => {
   it('filters findings to closed only', async () => {
     renderApp('/projects/p1')
     await screen.findByText('Login crash')
-    await userEvent.selectOptions(screen.getByLabelText('Finding status'), 'closed')
+    await userEvent.selectOptions(screen.getByLabelText('Finding status'), 'approved')
     expect(screen.queryByText('Login crash')).not.toBeInTheDocument()
     expect(screen.getByText('Push delay')).toBeInTheDocument()
   })

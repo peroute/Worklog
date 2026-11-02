@@ -20,10 +20,10 @@ export function reviewQueues(me: Profile, findings: Finding[], tasks: Task[]): R
       kind: 'lead',
       waiting: {
         findings: oldestFirst(
-          findings.filter((f) => (f.status === 'open' || f.status === 'fixed') && f.authorId !== me.id),
+          findings.filter((f) => (f.status === 'submitted' || f.status === 'resubmitted') && f.authorId !== me.id),
         ),
         tasks: oldestFirst(
-          tasks.filter((t) => (t.status === 'done' || t.status === 'fixed') && t.assignedTo !== me.id),
+          tasks.filter((t) => (t.status === 'submitted' || t.status === 'resubmitted') && t.assignedTo !== me.id),
         ),
       },
     }
@@ -33,12 +33,12 @@ export function reviewQueues(me: Profile, findings: Finding[], tasks: Task[]): R
   return {
     kind: 'member',
     toFix: {
-      findings: oldestFirst(myFindings.filter((f) => f.status === 'needs_review')),
-      tasks: oldestFirst(myTasks.filter((t) => t.status === 'needs_review')),
+      findings: oldestFirst(myFindings.filter((f) => f.status === 'changes_requested')),
+      tasks: oldestFirst(myTasks.filter((t) => t.status === 'changes_requested')),
     },
     waitingOnLead: {
-      findings: oldestFirst(myFindings.filter((f) => f.status === 'open' || f.status === 'fixed')),
-      tasks: oldestFirst(myTasks.filter((t) => t.status === 'done' || t.status === 'fixed')),
+      findings: oldestFirst(myFindings.filter((f) => f.status === 'submitted' || f.status === 'resubmitted')),
+      tasks: oldestFirst(myTasks.filter((t) => t.status === 'submitted' || t.status === 'resubmitted')),
     },
   }
 }

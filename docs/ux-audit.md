@@ -8,7 +8,7 @@
 
 ## Start here — if you only do five
 
-- [ ] **1a** Rename status labels (display only)
+- [x] **1a** Rename statuses (labels + DB values)
 - [ ] **1b** Make the Today tiles and the Review badge use the same count
 - [ ] **1c** Tasks page: fix the default filter + keep filters in the URL
 - [ ] **1e** Add "Save & resubmit" when editing sent-back work
@@ -20,7 +20,7 @@
 
 ## 1. Clarity (fix first)
 
-- [ ] **1a. "Needs review" means the opposite of what it says**
+- [x] **1a. "Needs review" means the opposite of what it says**
 **Problem:** `needs_review` means "the lead reviewed it and sent it back to you," but reads as "waiting for review." Today shows "Waiting for lead" and "Needs review" tiles side by side — they read as the same thing. The lead's button says "Send back for review" even though the receiver must *fix*, not review. "Done" (still waiting for lead) and "Approved" (actually finished) both sound finished.
 
 **Where:**
@@ -32,7 +32,7 @@
 - `src/features/today/TodayPage.tsx:95-100` — tile labels
 - `src/features/today/PersonColumn.tsx` — "Needs review" group heading
 
-**Fix:** change user-facing labels only; keep the DB enum.
+**Fix (done 2026-11-02):** renamed the labels *and* the DB values, so code, database and UI use the same words. Findings and tasks now share one vocabulary. Migration: `supabase/migrations/20261102000010_status_rename.sql`.
 
 | DB value | Current | Proposed |
 |---|---|---|
@@ -41,7 +41,7 @@
 | `fixed` | Fixed | Resubmitted |
 | `approved` / `closed` | Approved / Closed | Approved |
 
-Button → "Request changes". Tradeoff: labels-only is ~20 lines and no migration, but code and UI use different words. Renaming the enum too keeps them aligned at the cost of a migration + RLS/test updates. Recommended: labels now, enum never (or later).
+Button → "Request changes"; `send_back_*()` RPCs → `request_changes_*()`; finding action `close` → `approve`. Chosen over labels-only so future code never has to translate between two vocabularies.
 
 - [ ] **1b. Today tiles disagree with the Review badge and ignore the viewed date**
 **Problem:**

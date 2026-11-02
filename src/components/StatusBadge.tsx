@@ -1,18 +1,16 @@
 import type { FindingStatus, TaskStatus } from '../data/types'
 
-// Badge color = whose turn it is: amber waiting for lead, violet sent back, sky fixed, green approved.
+// Badge color = whose turn it is: amber waiting for lead, violet changes requested, sky resubmitted, green approved.
 const STYLES: Record<FindingStatus | TaskStatus, { label: string; pill: string; dot: string }> = {
-  open: { label: 'Open', pill: 'bg-open-soft text-open ring-open-edge/40', dot: 'bg-open-edge' },
-  done: { label: 'Done', pill: 'bg-open-soft text-open ring-open-edge/40', dot: 'bg-open-edge' },
-  needs_review: {
-    label: 'Needs review',
+  todo: { label: 'To do', pill: 'bg-surface-2 text-fg-muted ring-line-strong', dot: 'bg-fg-subtle' },
+  submitted: { label: 'Submitted', pill: 'bg-open-soft text-open ring-open-edge/40', dot: 'bg-open-edge' },
+  changes_requested: {
+    label: 'Changes requested',
     pill: 'bg-review-soft text-review ring-review-edge/40',
     dot: 'bg-review-edge',
   },
-  fixed: { label: 'Fixed', pill: 'bg-fixed-soft text-fixed ring-fixed-edge/40', dot: 'bg-fixed-edge' },
-  closed: { label: 'Closed', pill: 'bg-done-soft text-done ring-done-edge/40', dot: 'bg-done-edge' },
+  resubmitted: { label: 'Resubmitted', pill: 'bg-fixed-soft text-fixed ring-fixed-edge/40', dot: 'bg-fixed-edge' },
   approved: { label: 'Approved', pill: 'bg-done-soft text-done ring-done-edge/40', dot: 'bg-done-edge' },
-  todo: { label: 'To do', pill: 'bg-surface-2 text-fg-muted ring-line-strong', dot: 'bg-fg-subtle' },
 }
 
 export function StatusBadge({ status }: { status: FindingStatus | TaskStatus }) {

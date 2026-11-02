@@ -2,15 +2,15 @@ import { useState } from 'react'
 import { ErrorState } from '../../components/ErrorState'
 import { ui } from '../../components/ui'
 
-interface SendBackDialogProps {
+interface RequestChangesDialogProps {
   open: boolean
   itemTitle: string
   onSubmit: (body: string) => Promise<unknown>
   onCancel: () => void
 }
 
-/** Lead only. Sending work back always comes with a comment saying what needs fixing. */
-export function SendBackDialog({ open, itemTitle, onSubmit, onCancel }: SendBackDialogProps) {
+/** Lead only. Requesting changes always comes with a comment saying what needs fixing. */
+export function RequestChangesDialog({ open, itemTitle, onSubmit, onCancel }: RequestChangesDialogProps) {
   const [body, setBody] = useState('')
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -23,7 +23,7 @@ export function SendBackDialog({ open, itemTitle, onSubmit, onCancel }: SendBack
       await onSubmit(body)
       setBody('')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not send it back')
+      setError(err instanceof Error ? err.message : 'Could not request changes')
     } finally {
       setSending(false)
     }
@@ -34,11 +34,11 @@ export function SendBackDialog({ open, itemTitle, onSubmit, onCancel }: SendBack
       <div
         role="dialog"
         aria-modal="true"
-        aria-labelledby="send-back-title"
+        aria-labelledby="request-changes-title"
         className="w-full max-w-lg rounded-2xl border border-line border-t-4 border-t-review-edge bg-surface p-6 shadow-xl"
       >
-        <h2 id="send-back-title" className="text-lg font-semibold">
-          Send back for review
+        <h2 id="request-changes-title" className="text-lg font-semibold">
+          Request changes
         </h2>
         <p className="mt-1 text-sm text-fg-muted">“{itemTitle}” goes back to its owner with your comment.</p>
         <label className={`${ui.label} mt-4`}>
@@ -60,7 +60,7 @@ export function SendBackDialog({ open, itemTitle, onSubmit, onCancel }: SendBack
             disabled={!body.trim() || sending}
             className={`${ui.btnPrimary} bg-review-edge hover:bg-review-edge/90`}
           >
-            Send back
+            Request changes
           </button>
         </div>
       </div>

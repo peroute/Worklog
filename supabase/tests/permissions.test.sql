@@ -60,12 +60,12 @@ select is((select count(*)::int from public.projects where id = '22222222-2222-2
 select pg_temp.login_as('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb');
 set local role authenticated;
 -- Review flow (2026-10-30): only the lead closes findings now.
-select throws_ok($$ update public.findings set status = 'closed'
+select throws_ok($$ update public.findings set status = 'approved'
                     where id = 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee' $$,
                  '42501', 'not allowed to change this status',
                  'member cannot close someone else''s finding');                      -- 5
 select is((select status from public.findings where id = 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee'),
-          'open', 'the finding stays open');                                           -- 6
+          'submitted', 'the finding stays submitted');                                           -- 6
 select throws_ok($$ update public.findings set title = 'hijacked'
                     where id = 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee' $$,
                  '42501', 'only the author or lead can edit this finding',
@@ -111,7 +111,7 @@ select lives_ok($$ insert into public.tasks (id, project_id, title, assigned_to)
                    values ('33333333-3333-3333-3333-333333333333', 'dddddddd-dddd-dddd-dddd-dddddddddddd',
                            'Khaushik task for Hedi', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb') $$,
                 'member can create and assign a task');                                -- 14
-select throws_ok($$ update public.tasks set status = 'done'
+select throws_ok($$ update public.tasks set status = 'submitted'
                     where id = '11111111-1111-1111-1111-111111111111' $$,
                  '42501', 'not allowed to change this status',
                  'member cannot complete a task assigned to someone else');            -- 15
@@ -123,7 +123,7 @@ reset role;
 
 select pg_temp.login_as('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb');
 set local role authenticated;
-select lives_ok($$ update public.tasks set status = 'done'
+select lives_ok($$ update public.tasks set status = 'submitted'
                    where id = '33333333-3333-3333-3333-333333333333' $$,
                 'assignee can mark their task done');                                  -- 17
 select throws_ok($$ update public.tasks set title = 'renamed'

@@ -129,9 +129,9 @@ export function ProjectPage() {
             >
               <option value="all">All</option>
               <option value="todo">To do</option>
-              <option value="done">Done (waiting for lead)</option>
-              <option value="needs_review">Needs review</option>
-              <option value="fixed">Fixed</option>
+              <option value="submitted">Submitted (waiting for lead)</option>
+              <option value="changes_requested">Changes requested</option>
+              <option value="resubmitted">Resubmitted</option>
               <option value="approved">Approved</option>
             </select>
           </label>
@@ -176,10 +176,10 @@ export function ProjectPage() {
               className={ui.select}
             >
               <option value="all">All statuses</option>
-              <option value="open">Open (waiting for lead)</option>
-              <option value="needs_review">Needs review</option>
-              <option value="fixed">Fixed</option>
-              <option value="closed">Closed</option>
+              <option value="submitted">Submitted (waiting for lead)</option>
+              <option value="changes_requested">Changes requested</option>
+              <option value="resubmitted">Resubmitted</option>
+              <option value="approved">Approved</option>
             </select>
           </label>
           <button
@@ -217,7 +217,7 @@ export function ProjectPage() {
                           {author}
                         </span>
                         <span className="min-w-0 flex-1 basis-full sm:basis-auto">
-                          <span className={`font-semibold ${finding.status === 'open' ? 'text-fg' : 'text-fg-muted'}`}>
+                          <span className={`font-semibold ${finding.status === 'submitted' ? 'text-fg' : 'text-fg-muted'}`}>
                             {finding.title}
                           </span>
                         </span>

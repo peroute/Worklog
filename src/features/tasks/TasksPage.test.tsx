@@ -33,7 +33,7 @@ describe('TasksPage', () => {
     vi.mocked(listTasks).mockResolvedValue([
       makeTask({ title: 'Hedi task', assignedTo: hedi.id }),
       makeTask({ title: 'Khaushik task', assignedTo: khaushik.id }),
-      makeTask({ title: 'Finished task', assignedTo: hedi.id, status: 'done', doneAt: '2026-10-28T15:00:00Z' }),
+      makeTask({ title: 'Finished task', assignedTo: hedi.id, status: 'submitted', doneAt: '2026-10-28T15:00:00Z' }),
     ])
   })
 
@@ -56,7 +56,7 @@ describe('TasksPage', () => {
   it('can show done tasks', async () => {
     renderApp('/tasks')
     await screen.findByText('Hedi task')
-    await userEvent.selectOptions(screen.getByLabelText('Status'), 'done')
+    await userEvent.selectOptions(screen.getByLabelText('Status'), 'submitted')
     expect(screen.getByText('Finished task')).toBeInTheDocument()
     expect(screen.queryByText('Hedi task')).not.toBeInTheDocument()
   })
