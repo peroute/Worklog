@@ -35,7 +35,7 @@ export function ReviewPage() {
   const queues = reviewQueues(me, findings.data, tasks.data)
   const ctx = {
     personName: (id: string) => nameOf(profiles.data, id),
-    projectName: (id: string) => projects.data?.find((p) => p.id === id)?.name,
+    projectName: (id: string | null) => projects.data?.find((p) => p.id === id)?.name,
     latest: latest.data ?? {},
   }
 
@@ -67,7 +67,7 @@ interface QueueProps {
   empty: string
   items: { findings: Finding[]; tasks: Task[] }
   personName: (id: string) => string
-  projectName: (id: string) => string | undefined
+  projectName: (id: string | null) => string | undefined
   latest: Record<string, Comment>
 }
 

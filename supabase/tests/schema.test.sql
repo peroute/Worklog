@@ -2,7 +2,7 @@
 -- Everything runs inside a transaction that is rolled back, so no data is left behind.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(14);
+select plan(15);
 
 -- 1-5: all tables exist
 select has_table('public', 'profiles', 'profiles table exists');
@@ -90,6 +90,14 @@ select is(
   (select count(*)::int from public.findings where project_id = '22222222-2222-2222-2222-222222222222'),
   0,
   'deleting a project deletes its findings'
+);
+
+-- 15: a task can exist without a project
+select lives_ok(
+  $$ insert into public.tasks (project_id, title, assigned_to, created_by)
+     values (null, 'No-project chore', '11111111-1111-1111-1111-111111111111',
+             '11111111-1111-1111-1111-111111111111') $$,
+  'a task can be created with no project'
 );
 
 select * from finish();

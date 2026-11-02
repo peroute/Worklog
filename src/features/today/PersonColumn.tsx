@@ -15,7 +15,7 @@ interface PersonColumnProps {
   viewedDate: string
   isToday: boolean
   me: Profile | undefined
-  projectName: (id: string) => string | undefined
+  projectName: (id: string | null) => string | undefined
 }
 
 /** One person's day: their task groups, then the findings they logged. */

@@ -28,7 +28,7 @@ export function TasksPage() {
       (status === 'all' || t.status === status) &&
       (projectId === 'all' || t.projectId === projectId),
   )
-  const projectName = (id: string) => projects.data?.find((p) => p.id === id)?.name
+  const projectName = (id: string | null) => projects.data?.find((p) => p.id === id)?.name
 
   return (
     <div className="space-y-6">

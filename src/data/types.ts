@@ -28,7 +28,8 @@ export type TaskStatus = 'todo' | 'done' | 'needs_review' | 'fixed' | 'approved'
 
 export interface Task {
   id: string
-  projectId: string
+  /** null = not tied to any project. */
+  projectId: string | null
   title: string
   explanation: string | null
   assignedTo: string
@@ -40,7 +41,7 @@ export interface Task {
 }
 
 export interface NewTask {
-  projectId: string
+  projectId: string | null
   title: string
   explanation: string | null
   assignedTo: string

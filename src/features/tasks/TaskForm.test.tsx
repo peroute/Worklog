@@ -54,4 +54,22 @@ describe('TaskForm', () => {
     })
     expect(await screen.findByRole('heading', { name: 'Mobile App QA' })).toBeInTheDocument()
   })
+
+  it('creates a task with no project when the project is left empty', async () => {
+    vi.mocked(createTask).mockResolvedValue(makeTask({ projectId: null }))
+    renderApp('/tasks/new')
+    await userEvent.type(await screen.findByLabelText('Title'), 'Order new test phones')
+    await screen.findByRole('option', { name: 'Khaushik' })
+    await userEvent.selectOptions(screen.getByLabelText('Assignee'), khaushik.id)
+    expect(screen.getByLabelText('Project (optional)')).toHaveValue('')
+    await userEvent.click(screen.getByRole('button', { name: 'Save task' }))
+
+    expect(createTask).toHaveBeenCalledWith({
+      projectId: null,
+      title: 'Order new test phones',
+      assignedTo: khaushik.id,
+      explanation: null,
+      deadline: null,
+    })
+  })
 })

@@ -31,7 +31,7 @@ function EditTask({ id }: { id: string }) {
   return <TaskForm initial={task} />
 }
 
-type FieldErrors = Partial<Record<'project' | 'title' | 'assignee', string>>
+type FieldErrors = Partial<Record<'title' | 'assignee', string>>
 
 function TaskForm({ initial }: { initial?: Task }) {
   const navigate = useNavigate()
@@ -54,14 +54,13 @@ function TaskForm({ initial }: { initial?: Task }) {
   async function onSubmit(event: FormEvent) {
     event.preventDefault()
     const found: FieldErrors = {}
-    if (!projectId) found.project = 'Project is required'
     if (!title.trim()) found.title = 'Title is required'
     if (!assignedTo) found.assignee = 'Assignee is required'
     setErrors(found)
     if (Object.keys(found).length > 0) return
 
     const values: NewTask = {
-      projectId,
+      projectId: projectId || null, // '' from the select = no project
       title: title.trim(),
       assignedTo,
       explanation: explanation.trim() ? explanation : null,
@@ -88,16 +87,15 @@ function TaskForm({ initial }: { initial?: Task }) {
       <div className={`${ui.card} space-y-5 p-5 sm:p-6`}>
         <div className="grid gap-4 sm:grid-cols-2">
           <label className={ui.label}>
-            Project
+            Project (optional)
             <select value={projectId} onChange={(e) => setProjectId(e.target.value)} className={ui.input}>
-              <option value="">Choose…</option>
+              <option value="">No project</option>
               {projects.data?.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name}
                 </option>
               ))}
             </select>
-            {errors.project && <span className={ui.fieldError}>{errors.project}</span>}
           </label>
 
           <label className={ui.label}>

@@ -28,7 +28,7 @@ export function TodayPage() {
     setSearchParams(date === today ? {} : { date })
   }
 
-  const projectName = (id: string) => day.data?.projects.find((p) => p.id === id)?.name
+  const projectName = (id: string | null) => day.data?.projects.find((p) => p.id === id)?.name
   // Columns and person lists show only the viewed day's findings; the strip counts all of them.
   const dayFindings = (day.data?.findings ?? []).filter((f) => f.findingDate === viewedDate)
   const columns = day.data ? todayColumns(day.data.profiles, day.data.tasks, dayFindings, viewedDate) : []

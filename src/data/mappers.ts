@@ -36,7 +36,7 @@ export interface ProjectSummaryRow extends ProjectRow {
 
 export interface TaskRow {
   id: string
-  project_id: string
+  project_id: string | null
   title: string
   explanation: string | null
   assigned_to: string
