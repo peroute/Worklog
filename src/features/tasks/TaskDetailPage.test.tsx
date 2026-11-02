@@ -55,7 +55,7 @@ describe('TaskDetailPage', () => {
     vi.mocked(getTask).mockResolvedValue(task('submitted'))
     renderApp('/tasks/t1')
     expect(await screen.findByRole('heading', { level: 1, name: 'Retest login' })).toBeInTheDocument()
-    expect(screen.getByText('Android 13')).toHaveClass('whitespace-pre-wrap')
+    expect(screen.getByText('Android 13').closest('.markdown')).not.toBeNull()
     expect(screen.getByText('Submitted')).toBeInTheDocument()
     expect(screen.getByRole('region', { name: 'Comments' })).toBeInTheDocument()
   })
@@ -129,7 +129,7 @@ describe('TaskDetailPage', () => {
   })
 
   it('lets the assignee add proof of work from the task page', async () => {
-    vi.mocked(getTask).mockResolvedValue(task('done'))
+    vi.mocked(getTask).mockResolvedValue(task('submitted'))
     vi.mocked(listTaskAttachments).mockResolvedValue([brief])
     renderApp('/tasks/t1')
 
