@@ -31,10 +31,10 @@ describe('TaskRow', () => {
 
   it('marks your own task done', async () => {
     const task = makeTask({ id: 't1', title: 'Mine', assignedTo: hedi.id, createdBy: lead.id })
-    vi.mocked(setTaskStatus).mockResolvedValue({ ...task, status: 'done' })
+    vi.mocked(setTaskStatus).mockResolvedValue({ ...task, status: 'submitted' })
     renderWithProviders(<TaskRow task={task} assigneeName="Hedi" me={hedi} />)
     await userEvent.click(screen.getByRole('checkbox', { name: 'Mark “Mine” done' }))
-    expect(setTaskStatus).toHaveBeenCalledWith('t1', 'done')
+    expect(setTaskStatus).toHaveBeenCalledWith('t1', 'submitted')
   })
 
   it('shows edit/delete only to the creator or lead', () => {
@@ -63,13 +63,13 @@ describe('TaskRow with the review flow', () => {
   })
 
   it('shows a sent-back task with its badge instead of a checkbox', () => {
-    renderWithProviders(<TaskRow task={makeTask({ title: 'Fix me', status: 'needs_review' })} me={hedi} />)
-    expect(screen.getByText('Needs review')).toBeInTheDocument()
+    renderWithProviders(<TaskRow task={makeTask({ title: 'Fix me', status: 'changes_requested' })} me={hedi} />)
+    expect(screen.getByText('Changes requested')).toBeInTheDocument()
     expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
   })
 
   it('lets the assignee untick a done task until the lead reviews it', async () => {
-    const task = makeTask({ id: 't2', title: 'Waiting', assignedTo: hedi.id, status: 'done' })
+    const task = makeTask({ id: 't2', title: 'Waiting', assignedTo: hedi.id, status: 'submitted' })
     vi.mocked(setTaskStatus).mockResolvedValue({ ...task, status: 'todo' })
     renderWithProviders(<TaskRow task={task} me={hedi} />)
     await userEvent.click(screen.getByRole('checkbox', { name: 'Mark “Waiting” done' }))

@@ -31,11 +31,11 @@ export function TaskRow({ task, assigneeName, projectName, me }: TaskRowProps) {
   const overdue = isOverdue(task, todayInTeamTz())
   const actions = me ? taskActions(me, task) : []
   // The checkbox is the assignee's To do ⇄ Done switch; review states show their badge instead.
-  const showCheckbox = task.status === 'todo' || task.status === 'done'
+  const showCheckbox = task.status === 'todo' || task.status === 'submitted'
   const canToggle = actions.includes('markDone') || actions.includes('undoDone')
   // Approved work is frozen for everyone but the lead.
   const canEdit = me ? canEditContent(me, task.createdBy, task.status === 'approved') : false
-  const done = task.status !== 'todo' && task.status !== 'needs_review'
+  const done = task.status !== 'todo' && task.status !== 'changes_requested'
   const edgeClass = statusEdge(task.status, overdue)
 
   async function run(action: () => Promise<unknown>) {
@@ -57,7 +57,7 @@ export function TaskRow({ task, assigneeName, projectName, me }: TaskRowProps) {
             disabled={!canToggle || setStatus.isPending}
             aria-label={`Mark “${task.title}” done`}
             onChange={(e) =>
-              run(() => setStatus.mutateAsync({ id: task.id, status: e.target.checked ? 'done' : 'todo' }))
+              run(() => setStatus.mutateAsync({ id: task.id, status: e.target.checked ? 'submitted' : 'todo' }))
             }
             className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer accent-blue-600 disabled:cursor-not-allowed"
           />

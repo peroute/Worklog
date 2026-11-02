@@ -34,7 +34,7 @@ describe('findings data layer', () => {
     await loginAs('hedi')
     const { finding, failedUploads } = await createFinding(base('Login crash'), [fakeImage(), fakeImage('image/jpeg')])
     expect(failedUploads).toBe(0)
-    expect(finding).toMatchObject({ title: 'Login crash', status: 'open', authorId: await userId('hedi'), imageCount: 2 })
+    expect(finding).toMatchObject({ title: 'Login crash', status: 'submitted', authorId: await userId('hedi'), imageCount: 2 })
 
     const detail = await getFinding(finding.id)
     expect(detail.images.map((i) => i.position)).toEqual([0, 1])
@@ -68,8 +68,8 @@ describe('findings data layer', () => {
   // Review flow (2026-10-30): only the lead closes findings.
   it("does not let a member close, edit or delete someone else's finding", async () => {
     await loginAs('khaushik')
-    const [target] = await listFindings({ projectId: project.id, status: 'open' })
-    await expect(setFindingStatus(target.id, 'closed')).rejects.toThrow('not allowed to change this status')
+    const [target] = await listFindings({ projectId: project.id, status: 'submitted' })
+    await expect(setFindingStatus(target.id, 'approved')).rejects.toThrow('not allowed to change this status')
     await expect(updateFinding(target.id, { title: 'hijacked' })).rejects.toThrow(
       'only the author or lead can edit this finding',
     )

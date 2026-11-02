@@ -6,7 +6,7 @@ import {
   type PendingAttachment,
 } from '../../data/taskAttachments'
 import { prepareAttachment } from './prepareAttachment'
-import { createTask, deleteTask, getTask, listTasks, sendBackTask, setTaskStatus, updateTask } from '../../data/tasks'
+import { createTask, deleteTask, getTask, listTasks, requestChangesTask, setTaskStatus, updateTask } from '../../data/tasks'
 import type { NewTask, TaskAttachment, TaskStatus } from '../../data/types'
 
 type TaskFilter = Parameters<typeof listTasks>[0]
@@ -118,11 +118,12 @@ export function useRemoveTaskAttachment() {
   })
 }
 
-/** Lead only: comment + needs_review in one step. */
-export function useSendBackTask() {
+
+/** Lead only: comment + changes_requested in one step. */
+export function useRequestChangesTask() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, body }: { id: string; body: string }) => sendBackTask(id, body),
+    mutationFn: ({ id, body }: { id: string; body: string }) => requestChangesTask(id, body),
     onSuccess: () => invalidateTaskViews(queryClient),
   })
 }

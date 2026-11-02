@@ -21,7 +21,7 @@ describe('todayColumns', () => {
   })
 
   it('ignores the lead\'s done tasks and other days\' findings', () => {
-    const tasks = [makeTask({ assignedTo: lead.id, status: 'done', doneAt: '2026-10-20T15:00:00Z' })]
+    const tasks = [makeTask({ assignedTo: lead.id, status: 'submitted', doneAt: '2026-10-20T15:00:00Z' })]
     const findings = [makeFinding({ authorId: lead.id, findingDate: '2026-10-28' })]
     expect(names(todayColumns([lead, khaushik, hedi], tasks, findings, viewed))).toEqual(['Hedi', 'Khaushik'])
   })

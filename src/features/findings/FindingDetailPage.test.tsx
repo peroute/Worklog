@@ -2,7 +2,7 @@ import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { addComment, listComments } from '../../data/comments'
-import { deleteFinding, getFinding, listFindings, sendBackFinding, setFindingStatus } from '../../data/findings'
+import { deleteFinding, getFinding, listFindings, requestChangesFinding, setFindingStatus } from '../../data/findings'
 import { getMyProfile, listProfiles } from '../../data/profiles'
 import { getProject } from '../../data/projects'
 import { listTasks } from '../../data/tasks'
@@ -66,49 +66,49 @@ describe('FindingDetailPage', () => {
   it('gives a teammate no status buttons, no edit/delete and no reply box', async () => {
     renderApp('/findings/f1')
     await screen.findByRole('heading', { name: 'Login crash' })
-    expect(screen.queryByRole('button', { name: 'Approve & close' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Mark fixed' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Approve' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Resubmit' })).not.toBeInTheDocument()
     expect(screen.queryByRole('link', { name: 'Edit' })).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Add a comment')).not.toBeInTheDocument()
   })
 
   it('lets the lead approve and close', async () => {
     signInAs(lead)
-    vi.mocked(setFindingStatus).mockResolvedValue(detail({ status: 'closed' }))
+    vi.mocked(setFindingStatus).mockResolvedValue(detail({ status: 'approved' }))
     renderApp('/findings/f1')
-    await userEvent.click(await screen.findByRole('button', { name: 'Approve & close' }))
-    expect(setFindingStatus).toHaveBeenCalledWith('f1', 'closed')
+    await userEvent.click(await screen.findByRole('button', { name: 'Approve' }))
+    expect(setFindingStatus).toHaveBeenCalledWith('f1', 'approved')
   })
 
   it('makes the lead write a comment to send it back', async () => {
     signInAs(lead)
-    vi.mocked(sendBackFinding).mockResolvedValue()
+    vi.mocked(requestChangesFinding).mockResolvedValue()
     renderApp('/findings/f1')
-    await userEvent.click(await screen.findByRole('button', { name: 'Send back for review' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Request changes' }))
 
     const dialog = screen.getByRole('dialog')
-    const send = within(dialog).getByRole('button', { name: 'Send back' })
+    const send = within(dialog).getByRole('button', { name: 'Request changes' })
     expect(send).toBeDisabled()
     await userEvent.type(within(dialog).getByLabelText('What needs fixing?'), '   ')
     expect(send).toBeDisabled()
     await userEvent.type(within(dialog).getByLabelText('What needs fixing?'), 'Need the error log')
     await userEvent.click(send)
-    expect(sendBackFinding).toHaveBeenCalledWith('f1', '   Need the error log')
+    expect(requestChangesFinding).toHaveBeenCalledWith('f1', '   Need the error log')
   })
 
   it('lets the author mark a sent-back finding fixed, but not approve it', async () => {
     signInAs(khaushik)
-    vi.mocked(getFinding).mockResolvedValue(detail({ status: 'needs_review' }))
-    vi.mocked(setFindingStatus).mockResolvedValue(detail({ status: 'fixed' }))
+    vi.mocked(getFinding).mockResolvedValue(detail({ status: 'changes_requested' }))
+    vi.mocked(setFindingStatus).mockResolvedValue(detail({ status: 'resubmitted' }))
     renderApp('/findings/f1')
-    await userEvent.click(await screen.findByRole('button', { name: 'Mark fixed' }))
-    expect(setFindingStatus).toHaveBeenCalledWith('f1', 'fixed')
-    expect(screen.queryByRole('button', { name: 'Approve & close' })).not.toBeInTheDocument()
+    await userEvent.click(await screen.findByRole('button', { name: 'Resubmit' }))
+    expect(setFindingStatus).toHaveBeenCalledWith('f1', 'resubmitted')
+    expect(screen.queryByRole('button', { name: 'Approve' })).not.toBeInTheDocument()
   })
 
   it('shows the comment thread and lets the author reply', async () => {
     signInAs(khaushik)
-    vi.mocked(getFinding).mockResolvedValue(detail({ status: 'needs_review' }))
+    vi.mocked(getFinding).mockResolvedValue(detail({ status: 'changes_requested' }))
     vi.mocked(listComments).mockResolvedValue([
       {
         id: 'c1',
@@ -142,7 +142,7 @@ describe('FindingDetailPage', () => {
 
   it('freezes a closed finding for its author (no edit link)', async () => {
     signInAs(khaushik)
-    vi.mocked(getFinding).mockResolvedValue(detail({ status: 'closed' }))
+    vi.mocked(getFinding).mockResolvedValue(detail({ status: 'approved' }))
     renderApp('/findings/f1')
     await screen.findByRole('heading', { name: 'Login crash' })
     expect(screen.queryByRole('link', { name: 'Edit' })).not.toBeInTheDocument()

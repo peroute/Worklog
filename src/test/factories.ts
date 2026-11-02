@@ -32,7 +32,7 @@ export function makeFinding(overrides: Partial<Finding> = {}): Finding {
     title: 'A finding',
     explanation: 'Details',
     findingDate: '2026-10-29',
-    status: 'open',
+    status: 'submitted',
     authorId: hedi.id,
     createdAt: '2026-10-29T15:00:00Z',
     updatedAt: '2026-10-29T15:00:00Z',

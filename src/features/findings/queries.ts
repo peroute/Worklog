@@ -5,7 +5,7 @@ import {
   getFinding,
   listFindings,
   setFindingStatus,
-  sendBackFinding,
+  requestChangesFinding,
   updateFinding,
 } from '../../data/findings'
 import { deleteFindingImage, getFindingImagesFor, uploadFindingImages } from '../../data/images'
@@ -96,11 +96,11 @@ export function useDeleteFinding() {
   })
 }
 
-/** Lead only: comment + needs_review in one step. */
-export function useSendBackFinding() {
+/** Lead only: comment + changes_requested in one step. */
+export function useRequestChangesFinding() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, body }: { id: string; body: string }) => sendBackFinding(id, body),
+    mutationFn: ({ id, body }: { id: string; body: string }) => requestChangesFinding(id, body),
     onSuccess: () => invalidateFindingViews(queryClient),
   })
 }
