@@ -5,7 +5,7 @@ import { listComments } from '../../data/comments'
 import { getMyProfile, listProfiles } from '../../data/profiles'
 import { getProject } from '../../data/projects'
 import { listTaskAttachments } from '../../data/taskAttachments'
-import { getTask, sendBackTask, setTaskStatus } from '../../data/tasks'
+import { getTask, requestChangesTask, setTaskStatus } from '../../data/tasks'
 import type { Profile, TaskStatus } from '../../data/types'
 import { hedi, khaushik, lead, makeTask } from '../../test/factories'
 import { auth } from '../../test/mockAuth'
@@ -50,17 +50,17 @@ describe('TaskDetailPage', () => {
   })
 
   it('shows the task with its status, explanation and thread', async () => {
-    vi.mocked(getTask).mockResolvedValue(task('done'))
+    vi.mocked(getTask).mockResolvedValue(task('submitted'))
     renderApp('/tasks/t1')
     expect(await screen.findByRole('heading', { level: 1, name: 'Retest login' })).toBeInTheDocument()
     expect(screen.getByText('Android 13')).toHaveClass('whitespace-pre-wrap')
-    expect(screen.getByText('Done')).toBeInTheDocument()
+    expect(screen.getByText('Submitted')).toBeInTheDocument()
     expect(screen.getByRole('region', { name: 'Comments' })).toBeInTheDocument()
   })
 
   it('lets the lead approve finished work', async () => {
     signInAs(lead)
-    vi.mocked(getTask).mockResolvedValue(task('done'))
+    vi.mocked(getTask).mockResolvedValue(task('submitted'))
     vi.mocked(setTaskStatus).mockResolvedValue(task('approved'))
     renderApp('/tasks/t1')
     await userEvent.click(await screen.findByRole('button', { name: 'Approve' }))
@@ -69,22 +69,22 @@ describe('TaskDetailPage', () => {
 
   it('lets the lead send it back with a comment', async () => {
     signInAs(lead)
-    vi.mocked(getTask).mockResolvedValue(task('fixed'))
-    vi.mocked(sendBackTask).mockResolvedValue()
+    vi.mocked(getTask).mockResolvedValue(task('resubmitted'))
+    vi.mocked(requestChangesTask).mockResolvedValue()
     renderApp('/tasks/t1')
-    await userEvent.click(await screen.findByRole('button', { name: 'Send back for review' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Request changes' }))
     const dialog = screen.getByRole('dialog')
     await userEvent.type(within(dialog).getByLabelText('What needs fixing?'), 'Also Android 14')
-    await userEvent.click(within(dialog).getByRole('button', { name: 'Send back' }))
-    expect(sendBackTask).toHaveBeenCalledWith('t1', 'Also Android 14')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Request changes' }))
+    expect(requestChangesTask).toHaveBeenCalledWith('t1', 'Also Android 14')
   })
 
   it('lets the assignee mark a sent-back task fixed, but not approve it', async () => {
-    vi.mocked(getTask).mockResolvedValue(task('needs_review'))
-    vi.mocked(setTaskStatus).mockResolvedValue(task('fixed'))
+    vi.mocked(getTask).mockResolvedValue(task('changes_requested'))
+    vi.mocked(setTaskStatus).mockResolvedValue(task('resubmitted'))
     renderApp('/tasks/t1')
-    await userEvent.click(await screen.findByRole('button', { name: 'Mark fixed' }))
-    expect(setTaskStatus).toHaveBeenCalledWith('t1', 'fixed')
+    await userEvent.click(await screen.findByRole('button', { name: 'Resubmit' }))
+    expect(setTaskStatus).toHaveBeenCalledWith('t1', 'resubmitted')
     expect(screen.queryByRole('button', { name: 'Approve' })).not.toBeInTheDocument()
   })
 

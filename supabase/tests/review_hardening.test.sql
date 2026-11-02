@@ -18,13 +18,13 @@ update public.profiles set role = 'lead' where id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaa
 insert into public.projects (id, name, created_by) values
   ('dddddddd-dddd-dddd-dddd-dddddddddddd', 'pgtap: hardening', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa');
 
--- Admin-path fixtures in review states. t1: approved, assigned to hedi. t2: needs_review, created by khaushik for hedi.
+-- Admin-path fixtures in review states. t1: approved, assigned to hedi. t2: changes_requested, created by khaushik for hedi.
 insert into public.tasks (id, project_id, title, assigned_to, created_by, status) values
   ('a1a1a1a1-0000-0000-0000-000000000001', 'dddddddd-dddd-dddd-dddd-dddddddddddd', 'Approved', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'approved'),
-  ('a2a2a2a2-0000-0000-0000-000000000002', 'dddddddd-dddd-dddd-dddd-dddddddddddd', 'Under review', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'cccccccc-cccc-cccc-cccc-cccccccccccc', 'needs_review'),
+  ('a2a2a2a2-0000-0000-0000-000000000002', 'dddddddd-dddd-dddd-dddd-dddddddddddd', 'Under review', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'cccccccc-cccc-cccc-cccc-cccccccccccc', 'changes_requested'),
   ('a3a3a3a3-0000-0000-0000-000000000003', 'dddddddd-dddd-dddd-dddd-dddddddddddd', 'Fresh', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'todo');
 insert into public.findings (id, project_id, title, explanation, author_id, status) values
-  ('f1f1f1f1-0000-0000-0000-000000000001', 'dddddddd-dddd-dddd-dddd-dddddddddddd', 'Closed one', 'x', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'closed');
+  ('f1f1f1f1-0000-0000-0000-000000000001', 'dddddddd-dddd-dddd-dddd-dddddddddddd', 'Closed one', 'x', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'approved');
 update public.tasks set done_at = '2026-01-01T00:00:00Z' where id = 'a1a1a1a1-0000-0000-0000-000000000001';
 
 -- ─── 1. done_at belongs to the database ───────────────────────────────────────
@@ -35,7 +35,7 @@ select is((select done_at from public.tasks where id = 'a1a1a1a1-0000-0000-0000-
   'a member cannot rewrite done_at on someone else''s task');                                        -- 1
 
 select pg_temp.login_as('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'); set local role authenticated;
-update public.tasks set status = 'done', done_at = '2020-01-01T00:00:00Z' where id = 'a3a3a3a3-0000-0000-0000-000000000003';
+update public.tasks set status = 'submitted', done_at = '2020-01-01T00:00:00Z' where id = 'a3a3a3a3-0000-0000-0000-000000000003';
 reset role;
 select ok((select done_at > now() - interval '1 minute' from public.tasks where id = 'a3a3a3a3-0000-0000-0000-000000000003'),
   'finishing a task stamps now(), not a client-supplied date');                                      -- 2
@@ -78,7 +78,7 @@ select lives_ok($$ update public.tasks set assigned_to = 'cccccccc-cccc-cccc-ccc
                    where id = 'a2a2a2a2-0000-0000-0000-000000000002' $$,
   'the lead can reassign it');                                                                       -- 9
 reset role;
-select is((select status from public.tasks where id = 'a2a2a2a2-0000-0000-0000-000000000002'), 'needs_review',
+select is((select status from public.tasks where id = 'a2a2a2a2-0000-0000-0000-000000000002'), 'changes_requested',
   'reassigning keeps the review status');                                                            -- 10
 
 select * from finish();

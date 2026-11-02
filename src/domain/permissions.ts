@@ -11,23 +11,23 @@ export function canDeleteProject(me: Profile): boolean {
   return me.role === 'lead'
 }
 
-export type FindingAction = 'close' | 'sendBack' | 'reopen' | 'markFixed'
+export type FindingAction = 'approve' | 'requestChanges' | 'reopen' | 'resubmit'
 
 /** Status buttons `me` may use on a finding. */
 export function findingActions(me: Profile, f: Finding): FindingAction[] {
   const isLead = me.role === 'lead'
   const isAuthor = me.id === f.authorId
 
-  if (isLead && (f.status === 'open' || f.status === 'fixed')) {
-    // Nobody reviews the lead: their own work can be closed but not "sent back" to themselves.
-    return isAuthor ? ['close'] : ['close', 'sendBack']
+  if (isLead && (f.status === 'submitted' || f.status === 'resubmitted')) {
+    // Nobody reviews the lead: their own work can be approved but they can't request changes from themselves.
+    return isAuthor ? ['approve'] : ['approve', 'requestChanges']
   }
-  if (isLead && f.status === 'closed') return ['reopen']
-  if (isAuthor && f.status === 'needs_review') return ['markFixed']
+  if (isLead && f.status === 'approved') return ['reopen']
+  if (isAuthor && f.status === 'changes_requested') return ['resubmit']
   return []
 }
 
-export type TaskAction = 'markDone' | 'undoDone' | 'markFixed' | 'approve' | 'sendBack' | 'reopen'
+export type TaskAction = 'markDone' | 'undoDone' | 'resubmit' | 'approve' | 'requestChanges' | 'reopen'
 
 /** Status buttons `me` may use on a task. Assignee actions first, then the lead's review. */
 export function taskActions(me: Profile, t: Task): TaskAction[] {
@@ -37,13 +37,13 @@ export function taskActions(me: Profile, t: Task): TaskAction[] {
 
   if (isAssignee) {
     if (t.status === 'todo') actions.push('markDone')
-    if (t.status === 'done') actions.push('undoDone')
-    if (t.status === 'needs_review') actions.push('markFixed')
+    if (t.status === 'submitted') actions.push('undoDone')
+    if (t.status === 'changes_requested') actions.push('resubmit')
   }
   if (isLead) {
-    if (t.status === 'done' || t.status === 'fixed') {
+    if (t.status === 'submitted' || t.status === 'resubmitted') {
       actions.push('approve')
-      if (!isAssignee) actions.push('sendBack')
+      if (!isAssignee) actions.push('requestChanges')
     }
     if (t.status === 'approved') actions.push('reopen')
   }

@@ -53,7 +53,7 @@ export async function deleteTask(id: string): Promise<void> {
 }
 
 /** Lead only: sends a task back to its assignee with a required comment (one DB transaction). */
-export async function sendBackTask(id: string, body: string): Promise<void> {
-  const { error } = await supabase.rpc('send_back_task', { p_id: id, p_body: body })
+export async function requestChangesTask(id: string, body: string): Promise<void> {
+  const { error } = await supabase.rpc('request_changes_task', { p_id: id, p_body: body })
   if (error) throw toDataError(error)
 }

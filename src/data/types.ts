@@ -39,8 +39,11 @@ export interface TaskAttachment {
   url: string
 }
 
-/** todo → done (waiting for lead) → approved | needs_review → fixed → approved | needs_review */
-export type TaskStatus = 'todo' | 'done' | 'needs_review' | 'fixed' | 'approved'
+/**
+ * todo → submitted (waiting for lead) → approved | changes_requested → resubmitted → approved | changes_requested.
+ * Same words as FindingStatus, plus `todo` (tasks exist before the work is done).
+ */
+export type TaskStatus = 'todo' | 'submitted' | 'changes_requested' | 'resubmitted' | 'approved'
 
 export interface Task {
   id: string
@@ -64,8 +67,8 @@ export interface NewTask {
   deadline: string | null
 }
 
-/** open (waiting for lead) → closed | needs_review → fixed → closed | needs_review */
-export type FindingStatus = 'open' | 'needs_review' | 'fixed' | 'closed'
+/** submitted (waiting for lead) → approved | changes_requested → resubmitted → approved | changes_requested */
+export type FindingStatus = 'submitted' | 'changes_requested' | 'resubmitted' | 'approved'
 
 export interface Finding {
   id: string

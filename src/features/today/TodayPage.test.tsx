@@ -43,7 +43,7 @@ describe('TodayPage', () => {
       makeTask({ title: 'Overdue one', assignedTo: hedi.id, deadline: '2026-10-28' }),
       makeTask({ title: 'Upcoming one', assignedTo: hedi.id, deadline: '2026-11-05' }),
       // 03:00 UTC Oct 30 = 22:00 Central Oct 29
-      makeTask({ title: 'Done one', assignedTo: hedi.id, status: 'done', doneAt: '2026-10-30T03:00:00Z' }),
+      makeTask({ title: 'Done one', assignedTo: hedi.id, status: 'submitted', doneAt: '2026-10-30T03:00:00Z' }),
     ])
     vi.mocked(listFindings).mockResolvedValue([
       makeFinding({ title: 'Login crash', authorId: hedi.id, projectId: 'project-1', imageCount: 2 }),
@@ -96,25 +96,25 @@ describe('TodayPage', () => {
     renderApp('/')
     const summary = await screen.findByRole('region', { name: 'Day summary' })
     const tile = (label: string) => within(summary).getByText(label).parentElement
-    // Waiting for lead = Login crash (open finding) + Done one (done task, not yet reviewed).
+    // Waiting for lead = Login crash (submitted finding) + Done one (submitted task, not yet reviewed).
     expect(tile('Waiting for lead')).toHaveTextContent('2')
-    expect(tile('Needs review')).toHaveTextContent('0')
+    expect(tile('Changes requested')).toHaveTextContent('0')
     expect(tile('Overdue')).toHaveTextContent('1')
     expect(tile('Done today')).toHaveTextContent('1')
   })
 
-  it("puts work sent back by the lead at the top of the person's column", async () => {
+  it("puts work with changes requested at the top of the person's column", async () => {
     vi.mocked(listTasks).mockResolvedValue([
       makeTask({ title: 'Upcoming one', assignedTo: hedi.id, deadline: '2026-11-05' }),
-      makeTask({ title: 'Sent back one', assignedTo: hedi.id, status: 'needs_review' }),
+      makeTask({ title: 'Sent back one', assignedTo: hedi.id, status: 'changes_requested' }),
     ])
     renderApp('/')
     const hediColumn = await screen.findByRole('region', { name: 'Hedi' })
     const groups = within(hediColumn)
       .getAllByRole('heading', { level: 3 })
       .map((h) => h.textContent)
-    expect(groups[0]).toBe('Needs review')
-    expect(within(hediColumn).getByText('Needs review', { selector: 'span' })).toBeInTheDocument()
+    expect(groups[0]).toBe('Changes requested')
+    expect(within(hediColumn).getByText('Changes requested', { selector: 'span' })).toBeInTheDocument()
   })
 
   it('shows empty states on a brand-new workspace', async () => {

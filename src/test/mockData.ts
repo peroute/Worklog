@@ -22,7 +22,7 @@ export const projectsModule = {
 export const tasksModule = {
   listTasks: vi.fn(async () => []),
   getTask: vi.fn(),
-  sendBackTask: vi.fn(),
+  requestChangesTask: vi.fn(),
   createTask: vi.fn(),
   updateTask: vi.fn(),
   setTaskStatus: vi.fn(),
@@ -36,7 +36,7 @@ export const findingsModule = {
   updateFinding: vi.fn(),
   setFindingStatus: vi.fn(),
   deleteFinding: vi.fn(),
-  sendBackFinding: vi.fn(),
+  requestChangesFinding: vi.fn(),
 }
 
 export const commentsModule = {

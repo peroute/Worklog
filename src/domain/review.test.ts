@@ -3,19 +3,19 @@ import { hedi, khaushik, lead, makeFinding, makeTask } from '../test/factories'
 import { reviewBadgeCount, reviewQueues } from './review'
 
 const findings = [
-  makeFinding({ title: 'hedi open', authorId: hedi.id, status: 'open', createdAt: '2026-10-29T10:00:00Z' }),
-  makeFinding({ title: 'hedi fixed', authorId: hedi.id, status: 'fixed', createdAt: '2026-10-28T10:00:00Z' }),
-  makeFinding({ title: 'hedi to fix', authorId: hedi.id, status: 'needs_review' }),
-  makeFinding({ title: 'hedi closed', authorId: hedi.id, status: 'closed' }),
-  makeFinding({ title: 'khaushik to fix', authorId: khaushik.id, status: 'needs_review' }),
-  makeFinding({ title: 'lead own open', authorId: lead.id, status: 'open' }),
+  makeFinding({ title: 'hedi open', authorId: hedi.id, status: 'submitted', createdAt: '2026-10-29T10:00:00Z' }),
+  makeFinding({ title: 'hedi fixed', authorId: hedi.id, status: 'resubmitted', createdAt: '2026-10-28T10:00:00Z' }),
+  makeFinding({ title: 'hedi to fix', authorId: hedi.id, status: 'changes_requested' }),
+  makeFinding({ title: 'hedi closed', authorId: hedi.id, status: 'approved' }),
+  makeFinding({ title: 'khaushik to fix', authorId: khaushik.id, status: 'changes_requested' }),
+  makeFinding({ title: 'lead own open', authorId: lead.id, status: 'submitted' }),
 ]
 const tasks = [
-  makeTask({ title: 'hedi done', assignedTo: hedi.id, status: 'done' }),
-  makeTask({ title: 'hedi to fix', assignedTo: hedi.id, status: 'needs_review' }),
+  makeTask({ title: 'hedi done', assignedTo: hedi.id, status: 'submitted' }),
+  makeTask({ title: 'hedi to fix', assignedTo: hedi.id, status: 'changes_requested' }),
   makeTask({ title: 'hedi todo', assignedTo: hedi.id, status: 'todo' }),
-  makeTask({ title: 'khaushik fixed', assignedTo: khaushik.id, status: 'fixed' }),
-  makeTask({ title: 'lead own done', assignedTo: lead.id, status: 'done' }),
+  makeTask({ title: 'khaushik fixed', assignedTo: khaushik.id, status: 'resubmitted' }),
+  makeTask({ title: 'lead own done', assignedTo: lead.id, status: 'submitted' }),
 ]
 const titles = (items: { title: string }[]) => items.map((i) => i.title)
 

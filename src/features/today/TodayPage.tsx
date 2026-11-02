@@ -96,7 +96,7 @@ export function TodayPage() {
             {[
               // Same colors as the badges and edges: amber = lead's turn, violet = assignee's turn.
               { label: 'Waiting for lead', value: summary.waitingForLead, color: 'text-open', bar: 'bg-open-edge' },
-              { label: 'Needs review', value: summary.needsReview, color: 'text-review', bar: 'bg-review-edge' },
+              { label: 'Changes requested', value: summary.changesRequested, color: 'text-review', bar: 'bg-review-edge' },
               { label: 'Overdue', value: summary.overdue, color: 'text-overdue', bar: 'bg-overdue-edge' },
               { label: isToday ? 'Done today' : 'Done', value: summary.done, color: 'text-done', bar: 'bg-done-edge' },
             ].map((tile) => (

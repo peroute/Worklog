@@ -39,8 +39,8 @@ describe('tasks data layer', () => {
   it('lets the assignee mark it done, stamping doneAt', async () => {
     await loginAs('hedi')
     const [task] = await listTasks({ projectId: project.id, assignedTo: hediId })
-    const done = await setTaskStatus(task.id, 'done')
-    expect(done.status).toBe('done')
+    const done = await setTaskStatus(task.id, 'submitted')
+    expect(done.status).toBe('submitted')
     expect(done.doneAt).not.toBeNull()
     expect(await listTasks({ projectId: project.id, status: 'todo' })).toHaveLength(0)
   })
