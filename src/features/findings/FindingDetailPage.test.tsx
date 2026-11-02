@@ -52,8 +52,9 @@ describe('FindingDetailPage', () => {
   it('keeps line breaks in the explanation', async () => {
     renderApp('/findings/f1')
     const text = await screen.findByText(/line1/)
-    expect(text).toHaveClass('whitespace-pre-wrap')
-    expect(text.textContent).toBe('line1\nline2')
+    // Rendered as Markdown: a single Enter becomes a real <br>.
+    expect(text.querySelector('br')).not.toBeNull()
+    expect(text.textContent).toMatch(/line1\s*line2/)
   })
 
   it('shows HTML in an explanation as plain text, never as markup', async () => {

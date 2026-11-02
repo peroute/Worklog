@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import type { FindingImage } from '../../data/types'
+import { Markdown } from '../../components/Markdown'
 
 interface FindingDetailsProps {
   findingId: string
@@ -13,8 +14,8 @@ interface FindingDetailsProps {
 export function FindingDetails({ findingId, title, explanation, images, loadingImages }: FindingDetailsProps) {
   return (
     <div className="space-y-3 px-4 pb-4 sm:pl-[8.75rem]">
-      {/* Plain text: React escapes it, so pasted HTML shows as text, never as markup. */}
-      <p className="text-sm leading-relaxed text-fg-muted whitespace-pre-wrap">{explanation}</p>
+      {/* Markdown without raw HTML: pasted HTML still shows as text, never as markup. */}
+      <Markdown className="text-sm leading-relaxed text-fg-muted">{explanation}</Markdown>
 
       {loadingImages && <p className="text-xs text-fg-subtle">Loading screenshots…</p>}
       {images.length > 0 && (

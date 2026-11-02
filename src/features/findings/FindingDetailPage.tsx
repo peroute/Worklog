@@ -15,6 +15,7 @@ import { nameOf, useProfiles } from '../team/queries'
 import { CommentThread } from '../comments/CommentThread'
 import { RequestChangesDialog } from '../review/RequestChangesDialog'
 import { useDeleteFinding, useFinding, useRequestChangesFinding, useSetFindingStatus } from './queries'
+import { Markdown } from '../../components/Markdown'
 
 export function FindingDetailPage() {
   const { id = '' } = useParams()
@@ -132,7 +133,7 @@ export function FindingDetailPage() {
       </div>
 
       {/* Plain text only: React escapes it, so pasted HTML shows as text, never as markup. */}
-      <p className={`${ui.card} p-5 text-sm leading-relaxed text-fg whitespace-pre-wrap`}>{f.explanation}</p>
+      <Markdown className={`${ui.card} p-5 text-sm leading-relaxed text-fg`}>{f.explanation}</Markdown>
 
       {f.images.length > 0 && (
         <section aria-labelledby="evidence-heading" className="space-y-3">

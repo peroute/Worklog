@@ -51,8 +51,9 @@ describe('TaskRow', () => {
     renderWithProviders(<TaskRow task={makeTask({ explanation: 'Step 1\nStep 2' })} assigneeName="Hedi" me={hedi} />)
     await userEvent.click(screen.getByRole('button', { name: 'Details' }))
     const text = screen.getByText(/Step 1/)
-    expect(text).toHaveClass('whitespace-pre-wrap')
-    expect(text.textContent).toBe('Step 1\nStep 2')
+    // Rendered as Markdown: a single Enter becomes a real <br>.
+    expect(text.querySelector('br')).not.toBeNull()
+    expect(text.textContent).toMatch(/Step 1\s*Step 2/)
   })
 })
 

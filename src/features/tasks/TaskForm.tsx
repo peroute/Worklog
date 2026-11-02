@@ -144,15 +144,21 @@ function TaskForm({ initial, initialAttachments = [] }: { initial?: Task; initia
           {errors.title && <span className={ui.fieldError}>{errors.title}</span>}
         </label>
 
-        <label className={ui.label}>
-          Explanation
-          <textarea
-            value={explanation}
-            onChange={(e) => setExplanation(e.target.value)}
-            rows={5}
-            className={ui.input}
-          />
-        </label>
+        <div>
+          <label className={ui.label}>
+            Explanation
+            <textarea
+              value={explanation}
+              onChange={(e) => setExplanation(e.target.value)}
+              rows={5}
+              aria-describedby="explanation-hint"
+              className={ui.input}
+            />
+          </label>
+          <p id="explanation-hint" className="mt-1 text-xs text-fg-subtle">
+            Markdown supported: **bold**, - lists, [links](url), `code`
+          </p>
+        </div>
 
         <label className={`${ui.label} sm:w-1/2`}>
           Deadline (optional)

@@ -16,6 +16,7 @@ import { RequestChangesDialog } from '../review/RequestChangesDialog'
 import { nameOf, useProfiles } from '../team/queries'
 import { useRequestChangesTask, useSetTaskStatus, useTask } from './queries'
 import { TaskAttachments } from './TaskAttachments'
+import { Markdown } from '../../components/Markdown'
 
 // Button label + target status for each simple status action ("requestChanges" opens a dialog instead).
 const ACTIONS: Record<Exclude<TaskAction, 'requestChanges'>, { label: string; to: TaskStatus; primary: boolean }> = {
@@ -116,7 +117,7 @@ export function TaskDetailPage() {
       </div>
 
       {t.explanation && (
-        <p className={`${ui.card} p-5 text-sm leading-relaxed text-fg whitespace-pre-wrap`}>{t.explanation}</p>
+        <Markdown className={`${ui.card} p-5 text-sm leading-relaxed text-fg`}>{t.explanation}</Markdown>
       )}
 
       <TaskAttachments task={t} me={me} />
