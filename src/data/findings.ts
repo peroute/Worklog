@@ -84,7 +84,7 @@ export async function deleteFinding(id: string): Promise<void> {
 }
 
 /** Lead only: sends a finding back to its author with a required comment (one DB transaction). */
-export async function sendBackFinding(id: string, body: string): Promise<void> {
-  const { error } = await supabase.rpc('send_back_finding', { p_id: id, p_body: body })
+export async function requestChangesFinding(id: string, body: string): Promise<void> {
+  const { error } = await supabase.rpc('request_changes_finding', { p_id: id, p_body: body })
   if (error) throw toDataError(error)
 }

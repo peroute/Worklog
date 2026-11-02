@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useLocation, useParams } from 'react-router-dom'
 import { Avatar } from '../../components/Avatar'
 import { ErrorState } from '../../components/ErrorState'
 import { LoadingState } from '../../components/LoadingState'
@@ -12,15 +12,16 @@ import { formatDayHeading, todayInTeamTz } from '../../lib/dates'
 import { useMe } from '../auth/useMe'
 import { CommentThread } from '../comments/CommentThread'
 import { useProject } from '../projects/queries'
-import { SendBackDialog } from '../review/SendBackDialog'
+import { RequestChangesDialog } from '../review/RequestChangesDialog'
 import { nameOf, useProfiles } from '../team/queries'
-import { useSendBackTask, useSetTaskStatus, useTask } from './queries'
+import { useRequestChangesTask, useSetTaskStatus, useTask } from './queries'
+import { TaskAttachments } from './TaskAttachments'
 
-// Button label + target status for each simple status action ("sendBack" opens a dialog instead).
-const ACTIONS: Record<Exclude<TaskAction, 'sendBack'>, { label: string; to: TaskStatus; primary: boolean }> = {
-  markDone: { label: 'Mark done', to: 'done', primary: true },
+// Button label + target status for each simple status action ("requestChanges" opens a dialog instead).
+const ACTIONS: Record<Exclude<TaskAction, 'requestChanges'>, { label: string; to: TaskStatus; primary: boolean }> = {
+  markDone: { label: 'Mark done', to: 'submitted', primary: true },
   undoDone: { label: 'Undo done', to: 'todo', primary: false },
-  markFixed: { label: 'Mark fixed', to: 'fixed', primary: true },
+  resubmit: { label: 'Resubmit', to: 'resubmitted', primary: true },
   approve: { label: 'Approve', to: 'approved', primary: true },
   reopen: { label: 'Reopen', to: 'todo', primary: false },
 }
@@ -28,14 +29,17 @@ const ACTIONS: Record<Exclude<TaskAction, 'sendBack'>, { label: string; to: Task
 /** A task's own page: details, review actions and the comment thread. */
 export function TaskDetailPage() {
   const { id = '' } = useParams()
+  const location = useLocation()
+  // Set by the task form when some attachments didn't upload (the task itself was saved).
+  const failedUploads = (location.state as { failedUploads?: number } | null)?.failedUploads ?? 0
   const { me } = useMe()
   const task = useTask(id)
   const profiles = useProfiles()
   const projectId = task.data?.projectId ?? ''
   const project = useProject(projectId, { enabled: Boolean(projectId) })
   const setStatus = useSetTaskStatus()
-  const sendBack = useSendBackTask()
-  const [sendingBack, setSendingBack] = useState(false)
+  const requestChanges = useRequestChangesTask()
+  const [requestingChanges, setRequestingChanges] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   if (task.isPending) return <LoadingState />
@@ -58,6 +62,11 @@ export function TaskDetailPage() {
 
   return (
     <article className="mx-auto max-w-3xl space-y-6">
+      {failedUploads > 0 && (
+        <p role="alert" className="rounded-lg border border-open-edge/40 bg-open-soft px-3 py-2.5 text-sm text-open">
+          {failedUploads} attachment(s) failed to upload. Edit the task to retry.
+        </p>
+      )}
       {error && <ErrorState error={new Error(error)} />}
 
       <header className={`${ui.card} space-y-3 p-5 ${statusEdge(t.status, overdue)}`}>
@@ -83,9 +92,9 @@ export function TaskDetailPage() {
 
       <div className="flex flex-wrap gap-2">
         {actions.map((action) =>
-          action === 'sendBack' ? (
-            <button key={action} type="button" onClick={() => setSendingBack(true)} className={ui.btnSecondary}>
-              Send back for review
+          action === 'requestChanges' ? (
+            <button key={action} type="button" onClick={() => setRequestingChanges(true)} className={ui.btnSecondary}>
+              Request changes
             </button>
           ) : (
             <button
@@ -110,18 +119,20 @@ export function TaskDetailPage() {
         <p className={`${ui.card} p-5 text-sm leading-relaxed text-fg whitespace-pre-wrap`}>{t.explanation}</p>
       )}
 
+      <TaskAttachments task={t} me={me} />
+
       <CommentThread
         target={{ taskId: t.id }}
         canComment={me ? canComment(me, { kind: 'task', assignedTo: t.assignedTo, createdBy: t.createdBy }) : false}
       />
 
-      <SendBackDialog
-        open={sendingBack}
+      <RequestChangesDialog
+        open={requestingChanges}
         itemTitle={t.title}
-        onCancel={() => setSendingBack(false)}
+        onCancel={() => setRequestingChanges(false)}
         onSubmit={async (body) => {
-          await sendBack.mutateAsync({ id: t.id, body })
-          setSendingBack(false)
+          await requestChanges.mutateAsync({ id: t.id, body })
+          setRequestingChanges(false)
         }}
       />
     </article>

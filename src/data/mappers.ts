@@ -12,6 +12,7 @@ import type {
   ProjectSummary,
   Role,
   Task,
+  TaskAttachment,
   TaskStatus,
 } from './types'
 
@@ -36,7 +37,7 @@ export interface ProjectSummaryRow extends ProjectRow {
 
 export interface TaskRow {
   id: string
-  project_id: string
+  project_id: string | null
   title: string
   explanation: string | null
   assigned_to: string
@@ -67,6 +68,17 @@ export interface FindingImageRow {
   finding_id: string
   storage_path: string
   position: number
+}
+
+export interface TaskAttachmentRow {
+  id: string
+  task_id: string
+  storage_path: string
+  file_name: string
+  mime_type: string
+  size_bytes: number
+  position: number
+  uploaded_by: string
 }
 
 export interface CommentRow {
@@ -135,6 +147,18 @@ export const toFindingImage = (r: FindingImageRow, url: string): FindingImage =>
   findingId: r.finding_id,
   storagePath: r.storage_path,
   position: r.position,
+  url,
+})
+
+export const toTaskAttachment = (r: TaskAttachmentRow, url: string): TaskAttachment => ({
+  id: r.id,
+  taskId: r.task_id,
+  storagePath: r.storage_path,
+  fileName: r.file_name,
+  mimeType: r.mime_type,
+  sizeBytes: r.size_bytes,
+  position: r.position,
+  uploadedBy: r.uploaded_by,
   url,
 })
 

@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabase'
 import { DataError, toDataError } from './errors'
 import { listImagePaths, removeStoredFiles } from './images'
+import { listTaskAttachmentPaths, removeTaskAttachmentFiles } from './taskAttachments'
 import { toProject, toProjectSummary, type ProjectRow, type ProjectSummaryRow } from './mappers'
 import type { Project, ProjectSummary } from './types'
 
@@ -43,23 +44,33 @@ export async function updateProject(
 /** What a project delete would remove — shown in the confirmation dialog. */
 export async function getProjectDeleteCounts(
   id: string,
-): Promise<{ findings: number; tasks: number; images: number }> {
-  const [findings, tasks, images] = await Promise.all([
+): Promise<{ findings: number; tasks: number; images: number; attachments: number }> {
+  const [findings, tasks, images, attachments] = await Promise.all([
     supabase.from('findings').select('id', { count: 'exact', head: true }).eq('project_id', id),
     supabase.from('tasks').select('id', { count: 'exact', head: true }).eq('project_id', id),
     supabase
       .from('finding_images')
       .select('id, findings!inner(project_id)', { count: 'exact', head: true })
       .eq('findings.project_id', id),
+    // !inner join: only attachments whose task is in this project.
+    supabase
+      .from('task_attachments')
+      .select('id, tasks!inner(project_id)', { count: 'exact', head: true })
+      .eq('tasks.project_id', id),
   ])
-  for (const result of [findings, tasks, images]) {
+  for (const result of [findings, tasks, images, attachments]) {
     if (result.error) throw toDataError(result.error)
   }
-  return { findings: findings.count ?? 0, tasks: tasks.count ?? 0, images: images.count ?? 0 }
+  return {
+    findings: findings.count ?? 0,
+    tasks: tasks.count ?? 0,
+    images: images.count ?? 0,
+    attachments: attachments.count ?? 0,
+  }
 }
 
 /**
- * Deletes a project with its tasks, findings and screenshots (lead only).
+ * Deletes a project with its tasks, findings, screenshots and task attachments (lead only).
  * Order: collect file paths → delete rows (permission enforced here) → remove files.
  * If we removed files first, a refused delete would still destroy screenshots.
  */
@@ -67,10 +78,13 @@ export async function deleteProject(id: string): Promise<void> {
   const { data: findingRows, error: findingsError } = await supabase.from('findings').select('id').eq('project_id', id)
   if (findingsError) throw toDataError(findingsError)
   const paths = await listImagePaths((findingRows as { id: string }[]).map((f) => f.id))
+  const { data: taskRows, error: tasksError } = await supabase.from('tasks').select('id').eq('project_id', id)
+  if (tasksError) throw toDataError(tasksError)
+  const attachmentPaths = await listTaskAttachmentPaths((taskRows as { id: string }[]).map((t) => t.id))
 
   const { data, error } = await supabase.from('projects').delete().eq('id', id).select('id')
   if (error) throw toDataError(error)
   if (!data || data.length === 0) throw new DataError('Only the lead can delete projects')
 
-  await removeStoredFiles(paths)
+  await Promise.all([removeStoredFiles(paths), removeTaskAttachmentFiles(attachmentPaths)])
 }

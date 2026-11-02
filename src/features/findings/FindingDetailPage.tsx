@@ -13,8 +13,8 @@ import { useProject } from '../projects/queries'
 import { useTasks } from '../tasks/queries'
 import { nameOf, useProfiles } from '../team/queries'
 import { CommentThread } from '../comments/CommentThread'
-import { SendBackDialog } from '../review/SendBackDialog'
-import { useDeleteFinding, useFinding, useSendBackFinding, useSetFindingStatus } from './queries'
+import { RequestChangesDialog } from '../review/RequestChangesDialog'
+import { useDeleteFinding, useFinding, useRequestChangesFinding, useSetFindingStatus } from './queries'
 
 export function FindingDetailPage() {
   const { id = '' } = useParams()
@@ -30,8 +30,8 @@ export function FindingDetailPage() {
   const tasks = useTasks({ projectId }, { enabled: Boolean(finding.data?.taskId) })
   const setStatus = useSetFindingStatus()
   const deleteFinding = useDeleteFinding()
-  const sendBack = useSendBackFinding()
-  const [sendingBack, setSendingBack] = useState(false)
+  const requestChanges = useRequestChangesFinding()
+  const [requestingChanges, setRequestingChanges] = useState(false)
 
   const [enlarged, setEnlarged] = useState<number | null>(null)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
@@ -42,8 +42,8 @@ export function FindingDetailPage() {
 
   const f = finding.data
   const linkedTask = tasks.data?.find((t) => t.id === f.taskId)
-  // Closed work is frozen for the author; only the lead can still edit it.
-  const canEdit = me ? canEditContent(me, f.authorId, f.status === 'closed') : false
+  // Approved work is frozen for the author; only the lead can still edit it.
+  const canEdit = me ? canEditContent(me, f.authorId, f.status === 'approved') : false
   const actions = me ? findingActions(me, f) : []
   const setTo = (status: typeof f.status) => run(() => setStatus.mutateAsync({ id: f.id, status }))
 
@@ -89,31 +89,31 @@ export function FindingDetailPage() {
 
       <div className="flex flex-wrap gap-2">
         {/* Only the buttons this person may use right now (mirrors the DB rules). */}
-        {actions.includes('close') && (
+        {actions.includes('approve') && (
           <button
             type="button"
             disabled={setStatus.isPending}
-            onClick={() => setTo('closed')}
+            onClick={() => setTo('approved')}
             className={ui.btnPrimary}
           >
-            Approve &amp; close
+            Approve
           </button>
         )}
-        {actions.includes('sendBack') && (
-          <button type="button" onClick={() => setSendingBack(true)} className={ui.btnSecondary}>
-            Send back for review
+        {actions.includes('requestChanges') && (
+          <button type="button" onClick={() => setRequestingChanges(true)} className={ui.btnSecondary}>
+            Request changes
           </button>
         )}
-        {actions.includes('markFixed') && (
-          <button type="button" disabled={setStatus.isPending} onClick={() => setTo('fixed')} className={ui.btnPrimary}>
-            Mark fixed
+        {actions.includes('resubmit') && (
+          <button type="button" disabled={setStatus.isPending} onClick={() => setTo('resubmitted')} className={ui.btnPrimary}>
+            Resubmit
           </button>
         )}
         {actions.includes('reopen') && (
           <button
             type="button"
             disabled={setStatus.isPending}
-            onClick={() => setTo('open')}
+            onClick={() => setTo('submitted')}
             className={ui.btnSecondary}
           >
             Reopen
@@ -184,13 +184,13 @@ export function FindingDetailPage() {
         canComment={me ? canComment(me, { kind: 'finding', authorId: f.authorId }) : false}
       />
 
-      <SendBackDialog
-        open={sendingBack}
+      <RequestChangesDialog
+        open={requestingChanges}
         itemTitle={f.title}
-        onCancel={() => setSendingBack(false)}
+        onCancel={() => setRequestingChanges(false)}
         onSubmit={async (body) => {
-          await sendBack.mutateAsync({ id: f.id, body })
-          setSendingBack(false)
+          await requestChanges.mutateAsync({ id: f.id, body })
+          setRequestingChanges(false)
         }}
       />
 

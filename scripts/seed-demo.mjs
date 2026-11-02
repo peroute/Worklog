@@ -56,14 +56,14 @@ const [qa, research] = must(
 
 // Bulk inserts send null for columns a row omits (not the default), so give every row every column.
 const task = (row) => ({ explanation: null, deadline: null, status: 'todo', created_by: lead, ...row })
-const finding = (row) => ({ task_id: null, status: 'open', ...row })
+const finding = (row) => ({ task_id: null, status: 'submitted', ...row })
 
 const tasks = must(
   await admin
     .from('tasks')
     .insert([
-      task({ project_id: qa.id, title: 'Retest login flow', explanation: 'Android 13 and 14.\nUse a fresh install.', assigned_to: hedi, deadline: yesterday, created_by: lead, status: 'needs_review' }),
-      task({ project_id: qa.id, title: 'Smoke test build 1.4', assigned_to: hedi, deadline: today, created_by: lead, status: 'done' }),
+      task({ project_id: qa.id, title: 'Retest login flow', explanation: 'Android 13 and 14.\nUse a fresh install.', assigned_to: hedi, deadline: yesterday, created_by: lead, status: 'changes_requested' }),
+      task({ project_id: qa.id, title: 'Smoke test build 1.4', assigned_to: hedi, deadline: today, created_by: lead, status: 'submitted' }),
       task({ project_id: research.id, title: 'Compare vendor pricing', assigned_to: hedi, deadline: inAWeek, created_by: lead }),
       task({ project_id: qa.id, title: 'Push notification test', assigned_to: khaushik, created_by: lead, status: 'approved' }),
       task({ project_id: research.id, title: 'Audit SSO support', explanation: 'Check SAML + OIDC.', assigned_to: khaushik, created_by: lead }),
@@ -75,10 +75,10 @@ const taskId = (title) => tasks.find((t) => t.title === title).id
 
 const findings = must(
   await admin.from('findings').insert([
-    finding({ project_id: qa.id, task_id: taskId('Retest login flow'), title: 'Login crashes on Android 13', explanation: 'Steps:\n1. Fresh install\n2. Tap "Sign in with Google"\n3. App closes', finding_date: today, author_id: hedi, status: 'needs_review' }),
+    finding({ project_id: qa.id, task_id: taskId('Retest login flow'), title: 'Login crashes on Android 13', explanation: 'Steps:\n1. Fresh install\n2. Tap "Sign in with Google"\n3. App closes', finding_date: today, author_id: hedi, status: 'changes_requested' }),
     finding({ project_id: research.id, title: 'Vendor A has no SSO on the basic plan', explanation: 'SSO only on Enterprise ($$$).', finding_date: today, author_id: hedi }),
-    finding({ project_id: qa.id, task_id: taskId('Push notification test'), title: 'Push notifications arrive ~30s late', explanation: 'Measured 10 sends, median 31s.', finding_date: today, status: 'fixed', author_id: khaushik }),
-    finding({ project_id: qa.id, title: 'Checkout button misaligned on small screens', explanation: 'iPhone SE: button overlaps the total.', finding_date: yesterday, author_id: hedi, status: 'closed' }),
+    finding({ project_id: qa.id, task_id: taskId('Push notification test'), title: 'Push notifications arrive ~30s late', explanation: 'Measured 10 sends, median 31s.', finding_date: today, status: 'resubmitted', author_id: khaushik }),
+    finding({ project_id: qa.id, title: 'Checkout button misaligned on small screens', explanation: 'iPhone SE: button overlaps the total.', finding_date: yesterday, author_id: hedi, status: 'approved' }),
   ]).select('id, title'),
   'create findings',
 )

@@ -33,7 +33,7 @@ describe('TasksPage', () => {
     vi.mocked(listTasks).mockResolvedValue([
       makeTask({ title: 'Hedi task', assignedTo: hedi.id }),
       makeTask({ title: 'Khaushik task', assignedTo: khaushik.id }),
-      makeTask({ title: 'Finished task', assignedTo: hedi.id, status: 'done', doneAt: '2026-10-28T15:00:00Z' }),
+      makeTask({ title: 'Finished task', assignedTo: hedi.id, status: 'submitted', doneAt: '2026-10-28T15:00:00Z' }),
     ])
   })
 
@@ -53,10 +53,22 @@ describe('TasksPage', () => {
     expect(screen.queryByText('Khaushik task')).not.toBeInTheDocument()
   })
 
+  it('starts a member on their own tasks but lets them see everyone', async () => {
+    auth.signedInAs(hedi.id)
+    vi.mocked(getMyProfile).mockResolvedValue(hedi)
+    renderApp('/tasks')
+    expect(await screen.findByText('Hedi task')).toBeInTheDocument()
+    expect(screen.queryByText('Khaushik task')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Assignee')).toHaveValue(hedi.id)
+
+    await userEvent.selectOptions(screen.getByLabelText('Assignee'), 'all')
+    expect(screen.getByText('Khaushik task')).toBeInTheDocument()
+  })
+
   it('can show done tasks', async () => {
     renderApp('/tasks')
     await screen.findByText('Hedi task')
-    await userEvent.selectOptions(screen.getByLabelText('Status'), 'done')
+    await userEvent.selectOptions(screen.getByLabelText('Status'), 'submitted')
     expect(screen.getByText('Finished task')).toBeInTheDocument()
     expect(screen.queryByText('Hedi task')).not.toBeInTheDocument()
   })

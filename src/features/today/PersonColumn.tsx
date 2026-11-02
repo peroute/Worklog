@@ -15,7 +15,7 @@ interface PersonColumnProps {
   viewedDate: string
   isToday: boolean
   me: Profile | undefined
-  projectName: (id: string) => string | undefined
+  projectName: (id: string | null) => string | undefined
 }
 
 /** One person's day: their task groups, then the findings they logged. */
@@ -26,14 +26,14 @@ export function PersonColumn({ person, tasks, findings, viewedDate, isToday, me,
   const open = buckets.dueOrOverdue.length + buckets.upcoming.length + buckets.noDeadline.length
 
   const groups: [string, Task[]][] = [
-    // Work the lead sent back comes first: it's what this person must do next.
-    ['Needs review', buckets.needsReview],
+    // Work with changes requested comes first: it's what this person must do next.
+    ['Changes requested', buckets.changesRequested],
     ['Due / Overdue', buckets.dueOrOverdue],
     ['Upcoming', buckets.upcoming],
     ['No deadline', buckets.noDeadline],
     ['Completed', buckets.completed],
   ]
-  const nothing = open === 0 && buckets.needsReview.length === 0 && buckets.completed.length === 0 && mine.length === 0
+  const nothing = open === 0 && buckets.changesRequested.length === 0 && buckets.completed.length === 0 && mine.length === 0
 
   return (
     <section aria-labelledby={headingId} className={`${ui.card} flex flex-col overflow-hidden`}>
@@ -55,7 +55,7 @@ export function PersonColumn({ person, tasks, findings, viewedDate, isToday, me,
         .filter(([, items]) => items.length > 0)
         .map(([label, items]) => (
           <div key={label} className="border-b border-line last:border-b-0">
-            <h3 className={`${ui.sectionTitle} px-4 pt-3 pb-1 ${label === 'Needs review' ? 'text-review' : ''}`}>
+            <h3 className={`${ui.sectionTitle} px-4 pt-3 pb-1 ${label === 'Changes requested' ? 'text-review' : ''}`}>
               {label}
             </h3>
             <ul className="divide-y divide-line">

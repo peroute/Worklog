@@ -23,12 +23,34 @@ export interface ProjectSummary extends Project {
   openTasks: number
 }
 
-/** todo → done (waiting for lead) → approved | needs_review → fixed → approved | needs_review */
-export type TaskStatus = 'todo' | 'done' | 'needs_review' | 'fixed' | 'approved'
+/** A file attached to a task (screenshot or document). */
+export interface TaskAttachment {
+  id: string
+  taskId: string
+  storagePath: string
+  fileName: string
+  mimeType: string
+  sizeBytes: number
+  position: number
+  /** Who added it: the task's creator (the brief), the assignee (proof of work), or the lead. */
+  uploadedBy: string
+  /**
+   * Short-lived signed URL. Images open inline; documents carry a download flag so the
+   * browser saves them under their original name instead of rendering them.
+   */
+  url: string
+}
+
+/**
+ * todo → submitted (waiting for lead) → approved | changes_requested → resubmitted → approved | changes_requested.
+ * Same words as FindingStatus, plus `todo` (tasks exist before the work is done).
+ */
+export type TaskStatus = 'todo' | 'submitted' | 'changes_requested' | 'resubmitted' | 'approved'
 
 export interface Task {
   id: string
-  projectId: string
+  /** null = not tied to any project. */
+  projectId: string | null
   title: string
   explanation: string | null
   assignedTo: string
@@ -40,15 +62,15 @@ export interface Task {
 }
 
 export interface NewTask {
-  projectId: string
+  projectId: string | null
   title: string
   explanation: string | null
   assignedTo: string
   deadline: string | null
 }
 
-/** open (waiting for lead) → closed | needs_review → fixed → closed | needs_review */
-export type FindingStatus = 'open' | 'needs_review' | 'fixed' | 'closed'
+/** submitted (waiting for lead) → approved | changes_requested → resubmitted → approved | changes_requested */
+export type FindingStatus = 'submitted' | 'changes_requested' | 'resubmitted' | 'approved'
 
 export interface Finding {
   id: string

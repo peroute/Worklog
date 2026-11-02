@@ -51,7 +51,7 @@ describe('ProjectPage', () => {
         title: 'Login crash',
         explanation: 'Steps:\n1. Fresh install\n2. App closes',
         findingDate: '2026-10-29',
-        status: 'open',
+        status: 'submitted',
         authorId: hedi.id,
         imageCount: 2,
       }),
@@ -60,10 +60,10 @@ describe('ProjectPage', () => {
         title: 'Push delay',
         explanation: 'Median 31s',
         findingDate: '2026-10-29',
-        status: 'closed',
+        status: 'approved',
         authorId: khaushik.id,
       }),
-      makeFinding({ title: 'Button misaligned', findingDate: '2026-10-28', status: 'open', authorId: hedi.id }),
+      makeFinding({ title: 'Button misaligned', findingDate: '2026-10-28', status: 'submitted', authorId: hedi.id }),
     ])
   })
 
@@ -78,7 +78,7 @@ describe('ProjectPage', () => {
   it('filters findings to closed only', async () => {
     renderApp('/projects/p1')
     await screen.findByText('Login crash')
-    await userEvent.selectOptions(screen.getByLabelText('Finding status'), 'closed')
+    await userEvent.selectOptions(screen.getByLabelText('Finding status'), 'approved')
     expect(screen.queryByText('Login crash')).not.toBeInTheDocument()
     expect(screen.getByText('Push delay')).toBeInTheDocument()
   })
@@ -106,14 +106,14 @@ describe('ProjectPage', () => {
 
   it('lets the lead delete after confirming the counts', async () => {
     signInAs(lead)
-    vi.mocked(getProjectDeleteCounts).mockResolvedValue({ findings: 3, tasks: 2, images: 5 })
+    vi.mocked(getProjectDeleteCounts).mockResolvedValue({ findings: 3, tasks: 2, images: 5, attachments: 4 })
     vi.mocked(deleteProject).mockResolvedValue()
     renderApp('/projects/p1')
 
     await userEvent.click(await screen.findByRole('button', { name: 'Delete project' }))
     const dialog = await screen.findByRole('dialog')
     expect(
-      await within(dialog).findByText('This deletes 3 findings, 2 tasks and 5 screenshots. This cannot be undone.'),
+      await within(dialog).findByText('This deletes 3 findings (with 5 screenshots) and 2 tasks (with 4 attachments). This cannot be undone.'),
     ).toBeInTheDocument()
     expect(deleteProject).not.toHaveBeenCalled()
 

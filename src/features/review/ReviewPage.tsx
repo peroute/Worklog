@@ -22,7 +22,7 @@ export function ReviewPage() {
   const profiles = useProfiles()
   const projects = useProjects()
 
-  const inLoop = (s: string) => s === 'needs_review' || s === 'fixed'
+  const inLoop = (s: string) => s === 'changes_requested' || s === 'resubmitted'
   const latest = useLatestReviewComments(
     (findings.data ?? []).filter((f) => inLoop(f.status)).map((f) => f.id),
     (tasks.data ?? []).filter((t) => inLoop(t.status)).map((t) => t.id),
@@ -35,7 +35,7 @@ export function ReviewPage() {
   const queues = reviewQueues(me, findings.data, tasks.data)
   const ctx = {
     personName: (id: string) => nameOf(profiles.data, id),
-    projectName: (id: string) => projects.data?.find((p) => p.id === id)?.name,
+    projectName: (id: string | null) => projects.data?.find((p) => p.id === id)?.name,
     latest: latest.data ?? {},
   }
 
@@ -46,7 +46,7 @@ export function ReviewPage() {
         <p className="mt-1 text-sm text-fg-muted">
           {queues.kind === 'lead'
             ? 'Findings and tasks waiting for your review.'
-            : 'Work the lead sent back to you, and work waiting on the lead.'}
+            : 'Work the lead requested changes on, and work waiting on the lead.'}
         </p>
       </div>
 
@@ -67,7 +67,7 @@ interface QueueProps {
   empty: string
   items: { findings: Finding[]; tasks: Task[] }
   personName: (id: string) => string
-  projectName: (id: string) => string | undefined
+  projectName: (id: string | null) => string | undefined
   latest: Record<string, Comment>
 }
 

@@ -1,5 +1,6 @@
 // Shared Tailwind class strings, so every page uses the same button, input and card.
 // Only semantic tokens (see src/index.css), so everything works in light and dark mode.
+import type { FindingStatus, TaskStatus } from '../data/types'
 
 const buttonBase =
   'inline-flex items-center justify-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-medium transition-colors ' +
@@ -34,24 +35,20 @@ export const ui = {
 export const edge = {
   neutral: 'border-l-[3px] border-l-line-strong', // to do: not started
   waiting: 'border-l-[3px] border-l-open-edge', // amber: waiting for the lead
-  review: 'border-l-[3px] border-l-review-edge', // violet: sent back, assignee's turn
-  fixed: 'border-l-[3px] border-l-fixed-edge', // sky: fixed, back with the lead
-  done: 'border-l-[3px] border-l-done-edge', // green: approved / closed
+  review: 'border-l-[3px] border-l-review-edge', // violet: changes requested, assignee's turn
+  fixed: 'border-l-[3px] border-l-fixed-edge', // sky: resubmitted, back with the lead
+  done: 'border-l-[3px] border-l-done-edge', // green: approved
   overdue: 'border-l-[3px] border-l-overdue-edge', // red: to do past its deadline
 } as const
 
-type AnyStatus = 'open' | 'needs_review' | 'fixed' | 'closed' | 'todo' | 'done' | 'approved'
-
-export function statusEdge(status: AnyStatus, overdue = false): string {
+export function statusEdge(status: FindingStatus | TaskStatus, overdue = false): string {
   switch (status) {
-    case 'open':
-    case 'done':
+    case 'submitted':
       return edge.waiting
-    case 'needs_review':
+    case 'changes_requested':
       return edge.review
-    case 'fixed':
+    case 'resubmitted':
       return edge.fixed
-    case 'closed':
     case 'approved':
       return edge.done
     case 'todo':

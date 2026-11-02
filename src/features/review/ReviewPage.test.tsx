@@ -29,13 +29,13 @@ describe('ReviewPage', () => {
       { id: 'project-1', name: 'Mobile App QA', description: null, createdBy: lead.id, createdAt: '', openFindings: 0, openTasks: 0 },
     ])
     vi.mocked(listFindings).mockResolvedValue([
-      makeFinding({ id: 'f-open', title: 'Hedi open finding', authorId: hedi.id, status: 'open' }),
-      makeFinding({ id: 'f-review', title: 'Hedi sent back', authorId: hedi.id, status: 'needs_review' }),
-      makeFinding({ id: 'f-lead', title: 'Lead own finding', authorId: lead.id, status: 'open' }),
+      makeFinding({ id: 'f-open', title: 'Hedi open finding', authorId: hedi.id, status: 'submitted' }),
+      makeFinding({ id: 'f-review', title: 'Hedi sent back', authorId: hedi.id, status: 'changes_requested' }),
+      makeFinding({ id: 'f-lead', title: 'Lead own finding', authorId: lead.id, status: 'submitted' }),
     ])
     vi.mocked(listTasks).mockResolvedValue([
-      makeTask({ id: 't-fixed', title: 'Khaushik fixed task', assignedTo: khaushik.id, status: 'fixed' }),
-      makeTask({ id: 't-done', title: 'Hedi done task', assignedTo: hedi.id, status: 'done' }),
+      makeTask({ id: 't-fixed', title: 'Khaushik fixed task', assignedTo: khaushik.id, status: 'resubmitted' }),
+      makeTask({ id: 't-done', title: 'Hedi done task', assignedTo: hedi.id, status: 'submitted' }),
     ])
     vi.mocked(listLatestComments).mockResolvedValue({
       'f-review': { id: 'c1', findingId: 'f-review', taskId: null, authorId: lead.id, body: 'Add the error log', createdAt: '2026-10-30T15:00:00Z' },

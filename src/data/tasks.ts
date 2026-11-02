@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabase'
 import { DataError, toDataError } from './errors'
 import { taskPatchToRow, toTask, type TaskRow } from './mappers'
+import { listTaskAttachmentPaths, removeTaskAttachmentFiles } from './taskAttachments'
 import type { NewTask, Task, TaskStatus } from './types'
 
 export async function listTasks(
@@ -42,14 +43,17 @@ export async function setTaskStatus(id: string, status: TaskStatus): Promise<Tas
   return toTask(data as TaskRow)
 }
 
+/** Same order as deleteFinding: attachment paths → row (permission check) → files. */
 export async function deleteTask(id: string): Promise<void> {
+  const paths = await listTaskAttachmentPaths([id])
   const { data, error } = await supabase.from('tasks').delete().eq('id', id).select('id')
   if (error) throw toDataError(error)
   if (!data || data.length === 0) throw new DataError('Only the creator or lead can delete this task')
+  await removeTaskAttachmentFiles(paths)
 }
 
 /** Lead only: sends a task back to its assignee with a required comment (one DB transaction). */
-export async function sendBackTask(id: string, body: string): Promise<void> {
-  const { error } = await supabase.rpc('send_back_task', { p_id: id, p_body: body })
+export async function requestChangesTask(id: string, body: string): Promise<void> {
+  const { error } = await supabase.rpc('request_changes_task', { p_id: id, p_body: body })
   if (error) throw toDataError(error)
 }
