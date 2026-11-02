@@ -61,7 +61,8 @@ describe('TaskDetailPage', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Retest login' })).toBeInTheDocument()
     // The details sit in the header card right under the title, not floating below the buttons.
     expect(within(headerCard()).getByRole('heading', { name: 'Details' })).toBeInTheDocument()
-    expect(within(headerCard()).getByText('Android 13')).toHaveClass('whitespace-pre-wrap')
+    // Rendered through the Markdown component (paragraph inside the .markdown wrapper).
+    expect(within(headerCard()).getByText('Android 13').closest('.markdown')).not.toBeNull()
     expect(screen.getByText('Submitted')).toBeInTheDocument()
     expect(screen.getByRole('region', { name: 'Comments' })).toBeInTheDocument()
   })

@@ -143,9 +143,11 @@ describe('ProjectPage', () => {
       renderApp('/projects/p1')
       await userEvent.click(await screen.findByRole('button', { name: 'Show details' }))
 
+      // Rendered as Markdown: "1. … 2. …" becomes a real numbered list.
       const login = await screen.findByText(/Fresh install/)
-      expect(login).toHaveClass('whitespace-pre-wrap')
-      expect(login.textContent).toBe('Steps:\n1. Fresh install\n2. App closes')
+      expect(login.tagName).toBe('LI')
+      expect(login.closest('ol')?.textContent).toMatch(/Fresh install\s*App closes/)
+      expect(screen.getByText('Steps:')).toBeInTheDocument()
       expect(screen.getByText('Median 31s')).toBeInTheDocument()
       expect(screen.getByText(/Button misaligned/)).toBeInTheDocument()
 

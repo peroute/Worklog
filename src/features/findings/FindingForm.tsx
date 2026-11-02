@@ -148,16 +148,22 @@ function FindingForm({ initial }: { initial?: FindingDetail }) {
           {errors.title && <span className={ui.fieldError}>{errors.title}</span>}
         </label>
 
-        <label className={ui.label}>
-          Explanation
-          <textarea
-            value={explanation}
-            onChange={(e) => setExplanation(e.target.value)}
-            rows={6}
-            className={ui.input}
-          />
-          {errors.explanation && <span className={ui.fieldError}>{errors.explanation}</span>}
-        </label>
+        <div>
+          <label className={ui.label}>
+            Explanation
+            <textarea
+              value={explanation}
+              onChange={(e) => setExplanation(e.target.value)}
+              rows={6}
+              aria-describedby="explanation-hint"
+              className={ui.input}
+            />
+            {errors.explanation && <span className={ui.fieldError}>{errors.explanation}</span>}
+          </label>
+          <p id="explanation-hint" className="mt-1 text-xs text-fg-subtle">
+            Markdown supported: **bold**, - lists, [links](url), `code`
+          </p>
+        </div>
 
         <label className={`${ui.label} sm:w-1/2`}>
           Date

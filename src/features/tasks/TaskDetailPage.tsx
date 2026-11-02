@@ -14,6 +14,7 @@ import { CommentThread } from '../comments/CommentThread'
 import { useProject } from '../projects/queries'
 import { RequestChangesDialog } from '../review/RequestChangesDialog'
 import { nameOf, useProfiles } from '../team/queries'
+import { Markdown } from '../../components/Markdown'
 import { AttachmentList } from './AttachmentList'
 import { useRequestChangesTask, useSetTaskStatus, useTask, useTaskAttachments } from './queries'
 import { TaskSubmission, type SubmissionMode } from './TaskSubmission'
@@ -108,8 +109,8 @@ export function TaskDetailPage() {
             {t.explanation && (
               <div>
                 <h2 className={`${ui.sectionTitle} mb-1.5`}>Details</h2>
-                {/* Plain text only: React escapes it, so pasted HTML shows as text, never as markup. */}
-                <p className="text-sm leading-relaxed text-fg whitespace-pre-wrap">{t.explanation}</p>
+                {/* Markdown without raw HTML: pasted markup shows as text, never runs. */}
+                <Markdown className="text-sm leading-relaxed text-fg">{t.explanation}</Markdown>
               </div>
             )}
             {brief.length > 0 && (

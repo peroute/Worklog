@@ -8,6 +8,7 @@ import { isOverdue } from '../../domain/bucketTasks'
 import { canEditContent, taskActions } from '../../domain/permissions'
 import { formatDayHeading, todayInTeamTz } from '../../lib/dates'
 import { useDeleteTask, useSetTaskStatus } from './queries'
+import { Markdown } from '../../components/Markdown'
 
 interface TaskRowProps {
   task: Task
@@ -124,9 +125,9 @@ export function TaskRow({ task, assigneeName, projectName, me }: TaskRowProps) {
       </div>
 
       {expanded && task.explanation && (
-        <p className="mt-2 ml-7 rounded-lg bg-surface-2 p-3 text-sm leading-relaxed text-fg whitespace-pre-wrap">
+        <Markdown className="mt-2 ml-7 rounded-lg bg-surface-2 p-3 text-sm leading-relaxed text-fg">
           {task.explanation}
-        </p>
+        </Markdown>
       )}
       {error && (
         <p role="alert" className="mt-1 ml-7 text-xs font-medium text-overdue">
