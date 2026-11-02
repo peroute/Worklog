@@ -2,14 +2,15 @@ import { useState, type FormEvent } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { ErrorState } from '../../components/ErrorState'
 import { LoadingState } from '../../components/LoadingState'
+import { FileChip, RemoveBadge } from '../../components/FileDropzone'
 import { ui } from '../../components/ui'
 import { isImage } from '../../data/attachmentRules'
 import type { NewTask, Task, TaskAttachment } from '../../data/types'
-import { canEditContent } from '../../domain/permissions'
+import { canEditContent, canRemoveTaskAttachment } from '../../domain/permissions'
 import { useMe } from '../auth/useMe'
 import { useProjects } from '../projects/queries'
 import { useProfiles } from '../team/queries'
-import { AttachmentInput, FileChip } from './AttachmentInput'
+import { AttachmentInput } from './AttachmentInput'
 import { prepareAttachment } from './prepareAttachment'
 import { useCreateTask, useTaskAttachments, useTasks, useUpdateTask } from './queries'
 
@@ -40,6 +41,7 @@ type FieldErrors = Partial<Record<'title' | 'assignee', string>>
 
 function TaskForm({ initial, initialAttachments = [] }: { initial?: Task; initialAttachments?: TaskAttachment[] }) {
   const navigate = useNavigate()
+  const { me } = useMe()
   const [searchParams] = useSearchParams()
   const fromProject = searchParams.get('projectId')
   const projects = useProjects()
@@ -172,14 +174,13 @@ function TaskForm({ initial, initialAttachments = [] }: { initial?: Task; initia
                   ) : (
                     <FileChip name={attachment.fileName} size={attachment.sizeBytes} />
                   )}
-                  <button
-                    type="button"
-                    aria-label={`Remove saved ${attachment.fileName}`}
-                    onClick={() => setRemoved((current) => [...current, attachment])}
-                    className="absolute -top-2 -right-2 h-6 w-6 rounded-full bg-accent text-xs text-white shadow ring-2 ring-white"
-                  >
-                    ×
-                  </button>
+                  {/* The assignee's proof of work can only be removed by them or the lead. */}
+                  {initial && me && canRemoveTaskAttachment(me, initial, attachment) && (
+                    <RemoveBadge
+                      label={`Remove saved ${attachment.fileName}`}
+                      onClick={() => setRemoved((current) => [...current, attachment])}
+                    />
+                  )}
                 </li>
               ))}
             </ul>

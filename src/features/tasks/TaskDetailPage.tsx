@@ -119,7 +119,7 @@ export function TaskDetailPage() {
         <p className={`${ui.card} p-5 text-sm leading-relaxed text-fg whitespace-pre-wrap`}>{t.explanation}</p>
       )}
 
-      <TaskAttachments taskId={t.id} />
+      <TaskAttachments task={t} me={me} />
 
       <CommentThread
         target={{ taskId: t.id }}

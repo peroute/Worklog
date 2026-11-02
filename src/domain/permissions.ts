@@ -1,6 +1,6 @@
 // UI-side mirror of the database rules (review-flow spec §2). These only decide which buttons
 // to SHOW; the database guards are the source of truth and reject anything these miss.
-import type { Finding, Profile, Task } from '../data/types'
+import type { Finding, Profile, Task, TaskAttachment } from '../data/types'
 
 /** Edit/delete a finding or task: its owner or the lead. Approved work (`frozen`) is lead-only. */
 export function canEditContent(me: Profile, ownerId: string, frozen = false): boolean {
@@ -9,6 +9,24 @@ export function canEditContent(me: Profile, ownerId: string, frozen = false): bo
 
 export function canDeleteProject(me: Profile): boolean {
   return me.role === 'lead'
+}
+
+/**
+ * Attach files to a task: its creator (the brief), its assignee (optional proof of work) or the lead.
+ * Allowed at any status, even after approval (follow-up files).
+ */
+export function canAttachToTask(me: Profile, t: Pick<Task, 'createdBy' | 'assignedTo'>): boolean {
+  return me.role === 'lead' || me.id === t.createdBy || me.id === t.assignedTo
+}
+
+/** Remove an attachment: whoever added it, until approved (approved work keeps what was reviewed); the lead always. */
+export function canRemoveTaskAttachment(
+  me: Profile,
+  t: Pick<Task, 'status'>,
+  attachment: Pick<TaskAttachment, 'uploadedBy'>,
+): boolean {
+  if (me.role === 'lead') return true
+  return t.status !== 'approved' && attachment.uploadedBy === me.id
 }
 
 export type FindingAction = 'close' | 'sendBack' | 'reopen' | 'markFixed'

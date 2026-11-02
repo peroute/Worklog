@@ -7,7 +7,7 @@ import type { TaskAttachment } from './types'
 
 export const TASK_ATTACHMENT_BUCKET = 'task-attachments'
 
-const COLUMNS = 'id, task_id, storage_path, file_name, mime_type, size_bytes, position'
+const COLUMNS = 'id, task_id, storage_path, file_name, mime_type, size_bytes, position, uploaded_by'
 
 const bucket = () => supabase.storage.from(TASK_ATTACHMENT_BUCKET)
 
@@ -39,6 +39,7 @@ export async function uploadTaskAttachments(
       continue
     }
 
+    // uploaded_by defaults to the logged-in user in the DB; sending it would only invite spoofing.
     const { error: rowError } = await supabase.from('task_attachments').insert({
       task_id: taskId,
       storage_path: path,
@@ -108,7 +109,7 @@ async function signAttachments(rows: TaskAttachmentRow[]): Promise<Record<string
 export async function deleteTaskAttachment(attachment: TaskAttachment): Promise<void> {
   const { data, error } = await supabase.from('task_attachments').delete().eq('id', attachment.id).select('id')
   if (error) throw toDataError(error)
-  if (!data || data.length === 0) throw new DataError('Only the task creator or lead can remove this attachment')
+  if (!data || data.length === 0) throw new DataError('Only whoever added this attachment, or the lead, can remove it')
   await removeTaskAttachmentFiles([attachment.storagePath])
 }
 

@@ -32,6 +32,8 @@ export interface TaskAttachment {
   mimeType: string
   sizeBytes: number
   position: number
+  /** Who added it: the task's creator (the brief), the assignee (proof of work), or the lead. */
+  uploadedBy: string
   /**
    * Short-lived signed URL. Images open inline; documents carry a download flag so the
    * browser saves them under their original name instead of rendering them.

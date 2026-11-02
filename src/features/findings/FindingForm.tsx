@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { ErrorState } from '../../components/ErrorState'
 import { LoadingState } from '../../components/LoadingState'
+import { RemoveBadge } from '../../components/FileDropzone'
 import { ui } from '../../components/ui'
 import type { FindingDetail, FindingImage } from '../../data/types'
 import { canEditContent } from '../../domain/permissions'
@@ -179,14 +180,10 @@ function FindingForm({ initial }: { initial?: FindingDetail }) {
                     alt={`Saved screenshot ${index + 1}`}
                     className="h-20 w-20 rounded-lg object-cover ring-1 ring-line"
                   />
-                  <button
-                    type="button"
-                    aria-label={`Remove saved screenshot ${index + 1}`}
+                  <RemoveBadge
+                    label={`Remove saved screenshot ${index + 1}`}
                     onClick={() => setRemoved((current) => [...current, image])}
-                    className="absolute -top-2 -right-2 h-6 w-6 rounded-full bg-accent text-xs text-white shadow ring-2 ring-white"
-                  >
-                    ×
-                  </button>
+                  />
                 </li>
               ))}
             </ul>

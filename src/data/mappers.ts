@@ -78,6 +78,7 @@ export interface TaskAttachmentRow {
   mime_type: string
   size_bytes: number
   position: number
+  uploaded_by: string
 }
 
 export interface CommentRow {
@@ -157,6 +158,7 @@ export const toTaskAttachment = (r: TaskAttachmentRow, url: string): TaskAttachm
   mimeType: r.mime_type,
   sizeBytes: r.size_bytes,
   position: r.position,
+  uploadedBy: r.uploaded_by,
   url,
 })
 

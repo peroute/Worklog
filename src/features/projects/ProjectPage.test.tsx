@@ -106,14 +106,14 @@ describe('ProjectPage', () => {
 
   it('lets the lead delete after confirming the counts', async () => {
     signInAs(lead)
-    vi.mocked(getProjectDeleteCounts).mockResolvedValue({ findings: 3, tasks: 2, images: 5 })
+    vi.mocked(getProjectDeleteCounts).mockResolvedValue({ findings: 3, tasks: 2, images: 5, attachments: 4 })
     vi.mocked(deleteProject).mockResolvedValue()
     renderApp('/projects/p1')
 
     await userEvent.click(await screen.findByRole('button', { name: 'Delete project' }))
     const dialog = await screen.findByRole('dialog')
     expect(
-      await within(dialog).findByText('This deletes 3 findings, 2 tasks and 5 screenshots. This cannot be undone.'),
+      await within(dialog).findByText('This deletes 3 findings (with 5 screenshots) and 2 tasks (with 4 attachments). This cannot be undone.'),
     ).toBeInTheDocument()
     expect(deleteProject).not.toHaveBeenCalled()
 

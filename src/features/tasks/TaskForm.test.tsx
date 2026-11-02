@@ -6,7 +6,7 @@ import { getProject, listProjects } from '../../data/projects'
 import { deleteTaskAttachment, listTaskAttachments, uploadTaskAttachments } from '../../data/taskAttachments'
 import { createTask, getTask, listTasks, updateTask } from '../../data/tasks'
 import { listFindings } from '../../data/findings'
-import { hedi, khaushik, lead, makeTask } from '../../test/factories'
+import { hedi, khaushik, lead, makeAttachment, makeTask } from '../../test/factories'
 import { auth } from '../../test/mockAuth'
 import { renderApp } from '../../test/renderApp'
 
@@ -143,10 +143,7 @@ describe('TaskForm', () => {
 
   it('removes a saved attachment only when the edit is saved', async () => {
     const existing = makeTask({ id: 't1', title: 'Retest login', assignedTo: khaushik.id, createdBy: lead.id })
-    const attachment = {
-      id: 'a1', taskId: 't1', storagePath: 'tasks/t1/a.pdf', fileName: 'old-plan.pdf',
-      mimeType: 'application/pdf', sizeBytes: 2048, position: 3, url: 'https://signed/a',
-    }
+    const attachment = makeAttachment({ id: 'a1', taskId: 't1', fileName: 'old-plan.pdf', position: 3, uploadedBy: lead.id })
     vi.mocked(listTasks).mockResolvedValue([existing])
     vi.mocked(listTaskAttachments).mockResolvedValue([attachment])
     vi.mocked(updateTask).mockResolvedValue(existing)
@@ -162,5 +159,21 @@ describe('TaskForm', () => {
     expect(deleteTaskAttachment).toHaveBeenCalledWith(attachment)
     // new files go after the highest saved position, so order is stable
     expect(uploadTaskAttachments).toHaveBeenCalledWith('t1', [expect.objectContaining({ fileName: 'test-plan.pdf' })], 4)
+  })
+
+  it("shows the assignee's proof to the creator, without letting them remove it", async () => {
+    auth.signedInAs(hedi.id)
+    vi.mocked(getMyProfile).mockResolvedValue(hedi)
+    const existing = makeTask({ id: 't1', title: 'Retest login', assignedTo: khaushik.id, createdBy: hedi.id })
+    vi.mocked(listTasks).mockResolvedValue([existing])
+    vi.mocked(listTaskAttachments).mockResolvedValue([
+      makeAttachment({ taskId: 't1', fileName: 'brief.pdf', uploadedBy: hedi.id }),
+      makeAttachment({ taskId: 't1', fileName: 'proof.pdf', uploadedBy: khaushik.id }),
+    ])
+    renderApp('/tasks/t1/edit')
+
+    expect(await screen.findByRole('button', { name: 'Remove saved brief.pdf' })).toBeInTheDocument()
+    expect(screen.getByText(/proof\.pdf/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Remove saved proof.pdf' })).not.toBeInTheDocument()
   })
 })

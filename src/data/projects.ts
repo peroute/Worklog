@@ -44,19 +44,29 @@ export async function updateProject(
 /** What a project delete would remove — shown in the confirmation dialog. */
 export async function getProjectDeleteCounts(
   id: string,
-): Promise<{ findings: number; tasks: number; images: number }> {
-  const [findings, tasks, images] = await Promise.all([
+): Promise<{ findings: number; tasks: number; images: number; attachments: number }> {
+  const [findings, tasks, images, attachments] = await Promise.all([
     supabase.from('findings').select('id', { count: 'exact', head: true }).eq('project_id', id),
     supabase.from('tasks').select('id', { count: 'exact', head: true }).eq('project_id', id),
     supabase
       .from('finding_images')
       .select('id, findings!inner(project_id)', { count: 'exact', head: true })
       .eq('findings.project_id', id),
+    // !inner join: only attachments whose task is in this project.
+    supabase
+      .from('task_attachments')
+      .select('id, tasks!inner(project_id)', { count: 'exact', head: true })
+      .eq('tasks.project_id', id),
   ])
-  for (const result of [findings, tasks, images]) {
+  for (const result of [findings, tasks, images, attachments]) {
     if (result.error) throw toDataError(result.error)
   }
-  return { findings: findings.count ?? 0, tasks: tasks.count ?? 0, images: images.count ?? 0 }
+  return {
+    findings: findings.count ?? 0,
+    tasks: tasks.count ?? 0,
+    images: images.count ?? 0,
+    attachments: attachments.count ?? 0,
+  }
 }
 
 /**

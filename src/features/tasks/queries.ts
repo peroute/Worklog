@@ -5,6 +5,7 @@ import {
   uploadTaskAttachments,
   type PendingAttachment,
 } from '../../data/taskAttachments'
+import { prepareAttachment } from './prepareAttachment'
 import { createTask, deleteTask, getTask, listTasks, sendBackTask, setTaskStatus, updateTask } from '../../data/tasks'
 import type { NewTask, TaskAttachment, TaskStatus } from '../../data/types'
 
@@ -90,6 +91,29 @@ export function useDeleteTask() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => deleteTask(id),
+    onSuccess: () => invalidateTaskViews(queryClient),
+  })
+}
+
+/**
+ * Adds files to an existing task from its page (the assignee's proof of work, or more brief).
+ * Positions continue after the highest saved one so order stays stable.
+ */
+export function useAddTaskAttachments(taskId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ files, startPosition }: { files: File[]; startPosition: number }) => {
+      const prepared = await Promise.all(files.map((file) => prepareAttachment(file)))
+      return uploadTaskAttachments(taskId, prepared, startPosition)
+    },
+    onSuccess: () => invalidateTaskViews(queryClient),
+  })
+}
+
+export function useRemoveTaskAttachment() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (attachment: TaskAttachment) => deleteTaskAttachment(attachment),
     onSuccess: () => invalidateTaskViews(queryClient),
   })
 }

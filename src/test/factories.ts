@@ -1,5 +1,5 @@
 // Test data builders: each test overrides only the fields it cares about.
-import type { Finding, Profile, Task } from '../data/types'
+import type { Finding, Profile, Task, TaskAttachment } from '../data/types'
 
 export const lead: Profile = { id: 'lead-id', displayName: 'Lead', role: 'lead' }
 export const hedi: Profile = { id: 'hedi-id', displayName: 'Hedi', role: 'member' }
@@ -37,6 +37,22 @@ export function makeFinding(overrides: Partial<Finding> = {}): Finding {
     createdAt: '2026-10-29T15:00:00Z',
     updatedAt: '2026-10-29T15:00:00Z',
     imageCount: 0,
+    ...overrides,
+  }
+}
+
+export function makeAttachment(overrides: Partial<TaskAttachment> = {}): TaskAttachment {
+  const id = nextId('attachment')
+  return {
+    id,
+    taskId: 'task-1',
+    storagePath: `tasks/task-1/${id}.pdf`,
+    fileName: 'test-plan.pdf',
+    mimeType: 'application/pdf',
+    sizeBytes: 2048,
+    position: 0,
+    uploadedBy: lead.id,
+    url: `https://signed/${id}`,
     ...overrides,
   }
 }

@@ -27,7 +27,7 @@ export function DeleteProjectDialog({ project, open, onClose, onDeleted }: Delet
   }
 
   const summary = counts.data
-    ? `This deletes ${counts.data.findings} findings, ${counts.data.tasks} tasks and ${counts.data.images} screenshots. This cannot be undone.`
+    ? `This deletes ${counts.data.findings} findings (with ${counts.data.images} screenshots) and ${counts.data.tasks} tasks (with ${counts.data.attachments} attachments). This cannot be undone.`
     : counts.isError
       ? 'Could not count what will be deleted.'
       : 'Counting what will be deleted…'

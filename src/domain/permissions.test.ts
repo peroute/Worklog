@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import { hedi, khaushik, lead, makeFinding, makeTask } from '../test/factories'
 import type { FindingStatus, TaskStatus } from '../data/types'
-import { canComment, canDeleteProject, canEditContent, findingActions, taskActions } from './permissions'
+import {
+  canAttachToTask,
+  canComment,
+  canDeleteProject,
+  canEditContent,
+  canRemoveTaskAttachment,
+  findingActions,
+  taskActions,
+} from './permissions'
 
 // These mirror the DB rules (review-flow spec §2) so the UI only shows buttons that will work.
 describe('content permissions', () => {
@@ -19,6 +27,37 @@ describe('content permissions', () => {
   it('lets only the lead delete projects', () => {
     expect(canDeleteProject(hedi)).toBe(false)
     expect(canDeleteProject(lead)).toBe(true)
+  })
+})
+
+describe('task attachments', () => {
+  // Hedi assigned the task to Khaushik.
+  const open = makeTask({ createdBy: hedi.id, assignedTo: khaushik.id, status: 'todo' })
+  const approved = { ...open, status: 'approved' as const }
+  const outsider = { ...hedi, id: 'someone-else' }
+
+  it('lets the creator, the assignee (proof of work) and the lead attach', () => {
+    expect(canAttachToTask(hedi, open)).toBe(true)
+    expect(canAttachToTask(khaushik, open)).toBe(true)
+    expect(canAttachToTask(lead, open)).toBe(true)
+    expect(canAttachToTask(outsider, open)).toBe(false)
+  })
+
+  it('still allows adding files after approval', () => {
+    expect(canAttachToTask(hedi, approved)).toBe(true)
+    expect(canAttachToTask(khaushik, approved)).toBe(true)
+    expect(canAttachToTask(outsider, approved)).toBe(false)
+  })
+
+  it('lets people remove only what they added; the lead removes anything', () => {
+    const brief = { uploadedBy: hedi.id }
+    const proof = { uploadedBy: khaushik.id }
+    expect(canRemoveTaskAttachment(hedi, open, brief)).toBe(true)
+    expect(canRemoveTaskAttachment(hedi, open, proof)).toBe(false) // creator can't erase the proof
+    expect(canRemoveTaskAttachment(khaushik, open, brief)).toBe(false) // assignee can't erase the brief
+    expect(canRemoveTaskAttachment(khaushik, open, proof)).toBe(true)
+    expect(canRemoveTaskAttachment(khaushik, approved, proof)).toBe(false)
+    expect(canRemoveTaskAttachment(lead, approved, proof)).toBe(true)
   })
 })
 
