@@ -5,7 +5,7 @@
 -- Run: npx supabase test db
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(14);
+select plan(16);
 
 create function pg_temp.login_as(uid uuid) returns void language sql as $$
   select set_config('request.jwt.claims',
@@ -85,6 +85,14 @@ select throws_ok($$ update public.task_checklist_items set done = false
 select throws_ok($$ update public.task_checklist_items set title = 'Rewrite'
                     where id = '33333333-0000-0000-0000-000000000002' $$,
                  '42501', null, 'creator cannot edit the list after approval');
+-- 10b: ticking is the assignee's job even when creating an item
+select throws_ok($$ insert into public.task_checklist_items (task_id, title, done)
+                    values ('22222222-0000-0000-0000-000000000001', 'Already done', true) $$,
+                 '42501', null, 'creator cannot create an item already ticked');
+-- 10c
+select throws_ok($$ update public.task_checklist_items set task_id = '22222222-0000-0000-0000-000000000003'
+                    where id = '33333333-0000-0000-0000-000000000001' $$,
+                 '42501', null, 'items cannot move to another task');
 reset role;
 
 -- ── Lead ──
