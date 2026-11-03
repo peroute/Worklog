@@ -6,12 +6,15 @@ import { MarkdownField } from '../../components/MarkdownField'
 import { FileChip, RemoveBadge } from '../../components/FileDropzone'
 import { ui } from '../../components/ui'
 import { isImage } from '../../data/attachmentRules'
-import type { NewTask, Task, TaskAttachment } from '../../data/types'
+import type { ChecklistItem, NewTask, Task, TaskAttachment } from '../../data/types'
+import { isValidChecklistTitle, type DraftItem } from '../../domain/checklist'
 import { canEditContent, canRemoveTaskAttachment } from '../../domain/permissions'
 import { useMe } from '../auth/useMe'
 import { useProjects } from '../projects/queries'
 import { useProfiles } from '../team/queries'
 import { AttachmentInput } from './AttachmentInput'
+import { ChecklistEditor } from './ChecklistEditor'
+import { useChecklist } from './checklistQueries'
 import { prepareAttachment } from './prepareAttachment'
 import { useCreateTask, useTaskAttachments, useTasks, useUpdateTask } from './queries'
 
@@ -27,20 +30,28 @@ function EditTask({ id }: { id: string }) {
   // No single-task endpoint: the team's task list is small and usually already cached.
   const tasks = useTasks()
   const attachments = useTaskAttachments(id)
-  if (tasks.isPending || attachments.isPending || !me) return <LoadingState />
+  const checklist = useChecklist(id)
+  if (tasks.isPending || attachments.isPending || checklist.isPending || !me) return <LoadingState />
   if (tasks.isError) return <ErrorState error={tasks.error} />
   if (attachments.isError) return <ErrorState error={attachments.error} />
+  if (checklist.isError) return <ErrorState error={checklist.error} />
   const task = tasks.data.find((t) => t.id === id)
   if (!task) return <ErrorState error={new Error('Task not found')} />
   if (!canEditContent(me, task.createdBy)) {
     return <ErrorState error={new Error('Only the creator or lead can edit this task')} />
   }
-  return <TaskForm initial={task} initialAttachments={attachments.data} />
+  return <TaskForm initial={task} initialAttachments={attachments.data} initialChecklist={checklist.data} />
 }
 
 type FieldErrors = Partial<Record<'title' | 'assignee', string>>
 
-function TaskForm({ initial, initialAttachments = [] }: { initial?: Task; initialAttachments?: TaskAttachment[] }) {
+interface TaskFormProps {
+  initial?: Task
+  initialAttachments?: TaskAttachment[]
+  initialChecklist?: ChecklistItem[]
+}
+
+function TaskForm({ initial, initialAttachments = [], initialChecklist = [] }: TaskFormProps) {
   const navigate = useNavigate()
   const { me } = useMe()
   const [searchParams] = useSearchParams()
@@ -56,6 +67,15 @@ function TaskForm({ initial, initialAttachments = [] }: { initial?: Task; initia
   const [explanation, setExplanation] = useState(initial?.explanation ?? '')
   const [deadline, setDeadline] = useState(initial?.deadline ?? '')
   const [newFiles, setNewFiles] = useState<File[]>([])
+  // Edited on the page, saved with the task (diffChecklist works out what changed).
+  const [checklist, setChecklist] = useState<DraftItem[]>(() =>
+    initialChecklist.map((item) => ({ id: item.id, title: item.title })),
+  )
+  // Frozen snapshot: useState ignores later values, so a background refetch of initialChecklist
+  // can't change what "the user removed" means at save time.
+  const [checklistAtOpen] = useState(initialChecklist)
+  // Text typed in "Add an item…" but not added yet; Save includes it so it isn't silently lost.
+  const [pendingItem, setPendingItem] = useState('')
   // Saved attachments the user clicked × on. Only deleted on Save, so Cancel undoes it.
   const [removed, setRemoved] = useState<TaskAttachment[]>([])
   const [errors, setErrors] = useState<FieldErrors>({})
@@ -83,6 +103,10 @@ function TaskForm({ initial, initialAttachments = [] }: { initial?: Task; initia
       deadline: deadline || null, // empty date input = no deadline
     }
 
+    const finalChecklist = isValidChecklistTitle(pendingItem)
+      ? [...checklist, { title: pendingItem.trim() }]
+      : checklist
+
     setSubmitError(null)
     setSaving(true)
     try {
@@ -94,12 +118,16 @@ function TaskForm({ initial, initialAttachments = [] }: { initial?: Task; initia
             removeAttachments: removed,
             newAttachments: attachments,
             startPosition: Math.max(-1, ...initialAttachments.map((a) => a.position)) + 1,
+            checklist: { atOpen: checklistAtOpen, draft: finalChecklist },
           })
-        : await createTask.mutateAsync({ input: values, attachments })
+        : await createTask.mutateAsync({ input: values, attachments, checklist: finalChecklist })
 
-      if (result.failedUploads > 0) {
+      if (result.failedUploads > 0 || result.checklistError) {
         // The task is saved; send them to it so the warning sits next to what's missing.
-        navigate(`/tasks/${result.task.id}`, { replace: true, state: { failedUploads: result.failedUploads } })
+        navigate(`/tasks/${result.task.id}`, {
+          replace: true,
+          state: { failedUploads: result.failedUploads, checklistError: result.checklistError },
+        })
       } else {
         navigate(fromProject ? `/projects/${fromProject}` : '/tasks', { replace: true })
       }
@@ -149,6 +177,14 @@ function TaskForm({ initial, initialAttachments = [] }: { initial?: Task; initia
         </label>
 
         <MarkdownField label="Explanation" value={explanation} onChange={setExplanation} rows={5} />
+
+        <ChecklistEditor
+          items={checklist}
+          onChange={setChecklist}
+          pending={pendingItem}
+          onPendingChange={setPendingItem}
+          disabled={saving}
+        />
 
         <label className={`${ui.label} sm:w-1/2`}>
           Deadline (optional)
