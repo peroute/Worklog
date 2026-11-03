@@ -7,6 +7,14 @@ import {
 } from '../../data/taskAttachments'
 import { prepareAttachment } from './prepareAttachment'
 import {
+  addChecklistItems,
+  listChecklist,
+  removeChecklistItems,
+  renameChecklistItem,
+  setChecklistPositions,
+} from '../../data/checklist'
+import { diffChecklist, planChecklistSave, type DraftItem } from '../../domain/checklist'
+import {
   createTask,
   deleteTask,
   getTask,
@@ -16,7 +24,7 @@ import {
   submitTask,
   updateTask,
 } from '../../data/tasks'
-import type { AttachmentKind, NewTask, TaskAttachment, TaskStatus } from '../../data/types'
+import type { AttachmentKind, ChecklistItem, NewTask, TaskAttachment, TaskStatus } from '../../data/types'
 
 type TaskFilter = Parameters<typeof listTasks>[0]
 
@@ -42,8 +50,8 @@ export function useTaskAttachments(taskId: string, options: { enabled?: boolean 
   })
 }
 
-/** Everything that shows tasks or their counts. */
-function invalidateTaskViews(queryClient: QueryClient) {
+/** Everything that shows tasks or their counts (checklist changes use it too). */
+export function invalidateTaskViews(queryClient: QueryClient) {
   return Promise.all(
     [['tasks'], ['projects'], ['today'], ['review'], ['comments']].map((queryKey) =>
       queryClient.invalidateQueries({ queryKey }),
@@ -51,14 +59,39 @@ function invalidateTaskViews(queryClient: QueryClient) {
   )
 }
 
-/** Saves the task first, then its attachments. A failed upload never loses the task. */
+/**
+ * Runs checklist writes after the task is saved. Returns the error message instead of throwing,
+ * so the form sends the user to the saved task (with a warning) rather than inviting a second,
+ * duplicate save. null = everything saved.
+ */
+async function saveChecklist(write: () => Promise<unknown>): Promise<string | null> {
+  try {
+    await write()
+    return null
+  } catch (error) {
+    return error instanceof Error ? error.message : 'Could not save the checklist'
+  }
+}
+
+/** Saves the task first, then its checklist and attachments. A failure after that never loses the task. */
 export function useCreateTask() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async ({ input, attachments = [] }: { input: NewTask; attachments?: PendingAttachment[] }) => {
+    mutationFn: async ({
+      input,
+      attachments = [],
+      checklist = [],
+    }: {
+      input: NewTask
+      attachments?: PendingAttachment[]
+      checklist?: DraftItem[]
+    }) => {
       const task = await createTask(input)
+      const checklistError = await saveChecklist(() =>
+        addChecklistItems(task.id, diffChecklist([], checklist).add),
+      )
       const { failed } = await uploadTaskAttachments(task.id, attachments, 0)
-      return { task, failedUploads: failed }
+      return { task, failedUploads: failed, checklistError }
     },
     onSuccess: () => invalidateTaskViews(queryClient),
   })
@@ -71,18 +104,39 @@ interface UpdateTaskArgs {
   newAttachments?: PendingAttachment[]
   /** Position for the first new attachment (after the ones already saved). */
   startPosition?: number
+  /** The list as it was when the form opened, and the edited list. Omit to leave the checklist alone. */
+  checklist?: { atOpen: ChecklistItem[]; draft: DraftItem[] }
 }
 
 /** Saves text changes, removes attachments marked for removal, uploads new ones. */
 export function useUpdateTask() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async ({ id, patch, removeAttachments = [], newAttachments = [], startPosition = 0 }: UpdateTaskArgs) => {
+    mutationFn: async ({
+      id,
+      patch,
+      removeAttachments = [],
+      newAttachments = [],
+      startPosition = 0,
+      checklist,
+    }: UpdateTaskArgs) => {
       const task = await updateTask(id, patch)
+      // Remove first so freed slots count toward the 50-item limit, then rename, reorder, add.
+      const checklistError = checklist
+        ? await saveChecklist(async () => {
+            // Others may have changed the list since the form opened: write against what's there now.
+            const current = await listChecklist(id)
+            const ops = planChecklistSave(checklist.atOpen, current, checklist.draft)
+            await removeChecklistItems(ops.remove)
+            for (const { id: itemId, title } of ops.rename) await renameChecklistItem(itemId, title)
+            await setChecklistPositions(ops.reposition)
+            await addChecklistItems(id, ops.add)
+          })
+        : null
       // Remove before uploading, so freed slots count toward the 10-file limit.
       for (const attachment of removeAttachments) await deleteTaskAttachment(attachment)
       const { failed } = await uploadTaskAttachments(id, newAttachments, startPosition)
-      return { task, failedUploads: failed }
+      return { task, failedUploads: failed, checklistError }
     },
     onSuccess: () => invalidateTaskViews(queryClient),
   })

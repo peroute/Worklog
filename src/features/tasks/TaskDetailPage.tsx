@@ -7,7 +7,7 @@ import { StatusBadge } from '../../components/StatusBadge'
 import { statusEdge, ui } from '../../components/ui'
 import type { TaskStatus } from '../../data/types'
 import { isOverdue } from '../../domain/bucketTasks'
-import { canComment, canEditContent, taskActions, type TaskAction } from '../../domain/permissions'
+import { canComment, canEditChecklist, canEditContent, taskActions, type TaskAction } from '../../domain/permissions'
 import { formatDayHeading, todayInTeamTz } from '../../lib/dates'
 import { useMe } from '../auth/useMe'
 import { CommentThread } from '../comments/CommentThread'
@@ -16,6 +16,7 @@ import { RequestChangesDialog } from '../review/RequestChangesDialog'
 import { nameOf, useProfiles } from '../team/queries'
 import { Markdown } from '../../components/Markdown'
 import { AttachmentList } from './AttachmentList'
+import { ChecklistSection } from './ChecklistSection'
 import { useRequestChangesTask, useSetTaskStatus, useTask, useTaskAttachments } from './queries'
 import { TaskSubmission, type SubmissionMode } from './TaskSubmission'
 
@@ -42,7 +43,9 @@ export function TaskDetailPage() {
   const { id = '' } = useParams()
   const location = useLocation()
   // Set by the task form when some attachments didn't upload (the task itself was saved).
-  const failedUploads = (location.state as { failedUploads?: number } | null)?.failedUploads ?? 0
+  const navState = location.state as { failedUploads?: number; checklistError?: string | null } | null
+  const failedUploads = navState?.failedUploads ?? 0
+  const checklistError = navState?.checklistError ?? null
   const { me } = useMe()
   const task = useTask(id)
   const attachments = useTaskAttachments(id)
@@ -65,6 +68,8 @@ export function TaskDetailPage() {
   const assignee = nameOf(profiles.data, t.assignedTo)
   const allAttachments = attachments.data ?? []
   const brief = allAttachments.filter((a) => a.kind === 'brief')
+  // The checklist shows when it has items, or when this viewer could start one.
+  const showChecklist = t.checklistTotal > 0 || (me ? canEditChecklist(me, t) : false)
 
   async function setTo(status: TaskStatus) {
     setError(null)
@@ -80,6 +85,11 @@ export function TaskDetailPage() {
       {failedUploads > 0 && (
         <p role="alert" className="rounded-lg border border-open-edge/40 bg-open-soft px-3 py-2.5 text-sm text-open">
           {failedUploads} attachment(s) failed to upload. Edit the task to retry.
+        </p>
+      )}
+      {checklistError && (
+        <p role="alert" className="rounded-lg border border-open-edge/40 bg-open-soft px-3 py-2.5 text-sm text-open">
+          The checklist didn't save completely ({checklistError}). Edit the task to retry.
         </p>
       )}
       {error && <ErrorState error={new Error(error)} />}
@@ -104,7 +114,7 @@ export function TaskDetailPage() {
           <StatusBadge status={t.status} />
         </div>
 
-        {(t.explanation || brief.length > 0) && (
+        {(t.explanation || showChecklist || brief.length > 0) && (
           <div className="space-y-3 border-t border-line pt-4">
             {t.explanation && (
               <div>
@@ -113,6 +123,7 @@ export function TaskDetailPage() {
                 <Markdown className="text-sm leading-relaxed text-fg">{t.explanation}</Markdown>
               </div>
             )}
+            {showChecklist && <ChecklistSection task={t} me={me} />}
             {brief.length > 0 && (
               <div>
                 <h2 className={`${ui.sectionTitle} mb-1.5`}>
