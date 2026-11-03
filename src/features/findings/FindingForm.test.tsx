@@ -58,6 +58,14 @@ describe('FindingForm (new finding)', () => {
     expect(await screen.findByLabelText('Date')).toHaveValue('2026-10-29')
   })
 
+  it('marks tasks that have not started yet in the linked-task list', async () => {
+    vi.mocked(listTasks).mockResolvedValue([
+      makeTask({ id: 't9', title: 'Scheduled check', projectId: 'p1', startDate: '2026-11-03' }),
+    ])
+    renderApp('/findings/new?projectId=p1')
+    expect(await screen.findByRole('option', { name: 'Scheduled check (starts Tue, Nov 3)' })).toBeInTheDocument()
+  })
+
   it('clears the linked task when the project changes', async () => {
     renderApp('/findings/new?projectId=p1')
     const taskSelect = await screen.findByLabelText('Linked task')

@@ -4,7 +4,7 @@ import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { StatusBadge } from '../../components/StatusBadge'
 import { statusEdge, ui } from '../../components/ui'
 import type { Profile, Task } from '../../data/types'
-import { isOverdue } from '../../domain/bucketTasks'
+import { isOverdue, notStartedBy } from '../../domain/bucketTasks'
 import { canEditContent, taskActions } from '../../domain/permissions'
 import { formatDayHeading, todayInTeamTz } from '../../lib/dates'
 import { useChecklist } from './checklistQueries'
@@ -15,6 +15,8 @@ interface TaskRowProps {
   task: Task
   /** Omitted inside a person's own Today column, where it would repeat the heading. */
   assigneeName?: string
+  /** Who assigned it. Callers omit it for self-assigned tasks, where it would say nothing new. */
+  creatorName?: string
   /** Shown on cross-project lists (Tasks, Today); omitted on a project's own page. */
   projectName?: string
   me: Profile | undefined
@@ -25,7 +27,7 @@ const smallAction = 'rounded-md px-2 py-1 text-xs font-medium transition-colors'
 const chipBase = 'inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium'
 
 /** One task line, reused on the Project, Tasks and Today pages. Owns its own actions. */
-export function TaskRow({ task, assigneeName, projectName, me }: TaskRowProps) {
+export function TaskRow({ task, assigneeName, creatorName, projectName, me }: TaskRowProps) {
   const setStatus = useSetTaskStatus()
   const deleteTask = useDeleteTask()
   const [expanded, setExpanded] = useState(false)
@@ -36,7 +38,10 @@ export function TaskRow({ task, assigneeName, projectName, me }: TaskRowProps) {
   const unticked = task.checklistTotal - task.checklistDone
   const [error, setError] = useState<string | null>(null)
 
-  const overdue = isOverdue(task, todayInTeamTz())
+  const today = todayInTeamTz()
+  const overdue = isOverdue(task, today)
+  // Scheduled for later: hidden on Today until then, labeled everywhere else it's listed.
+  const waiting = task.status === 'todo' && notStartedBy(task, today)
   const actions = me ? taskActions(me, task) : []
   // The checkbox is the assignee's To do ⇄ Done switch; review states show their badge instead.
   const showCheckbox = task.status === 'todo' || task.status === 'submitted'
@@ -90,6 +95,12 @@ export function TaskRow({ task, assigneeName, projectName, me }: TaskRowProps) {
           <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-fg-muted">
             {task.status !== 'todo' && <StatusBadge status={task.status} />}
             {assigneeName && <span>{assigneeName}</span>}
+            {creatorName && <span>From {creatorName}</span>}
+            {waiting && task.startDate && (
+              <span className="rounded-md bg-surface-2 px-1.5 py-0.5 font-medium">
+                Starts {formatDayHeading(task.startDate)}
+              </span>
+            )}
             {task.checklistTotal > 0 && (
               <span
                 title={`${task.checklistDone} of ${task.checklistTotal} checklist items done`}

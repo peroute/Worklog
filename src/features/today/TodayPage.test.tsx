@@ -137,4 +137,23 @@ describe('TodayPage', () => {
     expect(screen.getByRole('link', { name: '+ Log finding' })).toHaveAttribute('href', '/findings/new')
     expect(screen.getByRole('link', { name: '+ Assign task' })).toHaveAttribute('href', '/tasks/new')
   })
+  it('assigns new tasks to start on the day being viewed', async () => {
+    renderApp('/?date=2026-11-03')
+    expect(await screen.findByRole('link', { name: '+ Assign task' })).toHaveAttribute(
+      'href',
+      '/tasks/new?start=2026-11-03',
+    )
+  })
+
+  it("keeps a task off the person's column until its start day", async () => {
+    vi.mocked(listTasks).mockResolvedValue([
+      makeTask({ title: 'Scheduled check', assignedTo: hedi.id, startDate: '2026-10-30' }),
+    ])
+    renderApp('/')
+    const column = await screen.findByRole('region', { name: 'Hedi' })
+    expect(within(column).queryByText('Scheduled check')).not.toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Next day' }))
+    expect(await within(screen.getByRole('region', { name: 'Hedi' })).findByText('Scheduled check')).toBeInTheDocument()
+  })
 })

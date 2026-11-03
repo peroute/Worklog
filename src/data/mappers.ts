@@ -44,6 +44,7 @@ export interface TaskRow {
   explanation: string | null
   assigned_to: string
   deadline: string | null
+  start_date: string | null
   status: TaskStatus
   done_at: string | null
   submission_note: string | null
@@ -139,6 +140,7 @@ export const toTask = (r: TaskRow): Task => ({
   explanation: r.explanation,
   assignedTo: r.assigned_to,
   deadline: r.deadline,
+  startDate: r.start_date,
   status: r.status,
   doneAt: r.done_at,
   submissionNote: r.submission_note,
@@ -210,6 +212,7 @@ export const taskPatchToRow = (patch: Partial<NewTask>) =>
     explanation: 'explanation',
     assignedTo: 'assigned_to',
     deadline: 'deadline',
+    startDate: 'start_date',
   })
 
 export const findingPatchToRow = (patch: Partial<NewFinding>) =>

@@ -19,6 +19,11 @@ vi.mock('../../data/findings', () => import('../../test/mockData').then((m) => m
 vi.mock('../../data/taskAttachments', () => import('../../test/mockData').then((m) => m.taskAttachmentsModule))
 vi.mock('../../data/checklist', () => import('../../test/mockData').then((m) => m.checklistModule))
 // Real compression needs a canvas; pretend every screenshot comes out as a small WebP.
+// Pin "today" so the default start day is predictable.
+vi.mock('../../lib/dates', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../lib/dates')>()),
+  todayInTeamTz: () => '2026-11-02',
+}))
 vi.mock('../findings/compress', () => ({
   compressScreenshot: vi.fn(async () => new Blob(['webp'], { type: 'image/webp' })),
 }))
@@ -67,6 +72,7 @@ describe('TaskForm', () => {
       assignedTo: khaushik.id,
       explanation: 'On Android 13\nand 14',
       deadline: null,
+      startDate: '2026-11-02',
     })
     expect(await screen.findByRole('heading', { name: 'Mobile App QA' })).toBeInTheDocument()
   })
@@ -86,6 +92,7 @@ describe('TaskForm', () => {
       assignedTo: khaushik.id,
       explanation: null,
       deadline: null,
+      startDate: '2026-11-02',
     })
   })
 
@@ -241,5 +248,42 @@ describe('TaskForm', () => {
     await userEvent.type(screen.getByPlaceholderText('Add an item…'), 'Last step')
     await userEvent.click(screen.getByRole('button', { name: 'Save task' }))
     await vi.waitFor(() => expect(addChecklistItems).toHaveBeenCalledWith('new-task', [{ title: 'Last step', position: 0 }]))
+  })
+
+  it('starts the task on the day passed from Today', async () => {
+    vi.mocked(createTask).mockResolvedValue(makeTask())
+    renderApp('/tasks/new?start=2026-11-09')
+    await fillRequired()
+    expect(screen.getByLabelText('Start day')).toHaveValue('2026-11-09')
+    await userEvent.click(screen.getByRole('button', { name: 'Save task' }))
+    expect(createTask).toHaveBeenCalledWith(expect.objectContaining({ startDate: '2026-11-09' }))
+  })
+
+  it('starts the task today when no day is passed', async () => {
+    renderApp('/tasks/new')
+    expect(await screen.findByLabelText('Start day')).toHaveValue('2026-11-02')
+  })
+
+  it('blocks a deadline before the start day', async () => {
+    renderApp('/tasks/new?start=2026-11-09')
+    await fillRequired()
+    await userEvent.type(screen.getByLabelText('Deadline (optional)'), '2026-11-05')
+    await userEvent.click(screen.getByRole('button', { name: 'Save task' }))
+    expect(await screen.findByText("Deadline can't be before the start day")).toBeInTheDocument()
+    expect(createTask).not.toHaveBeenCalled()
+  })
+
+  it('lets the creator move the start day of an existing task', async () => {
+    const task = makeTask({ id: 't1', startDate: '2026-11-09', createdBy: lead.id })
+    vi.mocked(listTasks).mockResolvedValue([task])
+    vi.mocked(listTaskAttachments).mockResolvedValue([])
+    vi.mocked(updateTask).mockResolvedValue(task)
+    renderApp('/tasks/t1/edit')
+    const start = await screen.findByLabelText('Start day')
+    expect(start).toHaveValue('2026-11-09')
+    await userEvent.clear(start)
+    await userEvent.type(start, '2026-11-12')
+    await userEvent.click(screen.getByRole('button', { name: 'Save task' }))
+    expect(updateTask).toHaveBeenCalledWith('t1', expect.objectContaining({ startDate: '2026-11-12' }))
   })
 })

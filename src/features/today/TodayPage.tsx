@@ -29,6 +29,7 @@ export function TodayPage() {
   }
 
   const projectName = (id: string | null) => day.data?.projects.find((p) => p.id === id)?.name
+  const personName = (id: string) => day.data?.profiles.find((p) => p.id === id)?.displayName
   // Columns and person lists show only the viewed day's findings; the strip counts all of them.
   const dayFindings = (day.data?.findings ?? []).filter((f) => f.findingDate === viewedDate)
   const columns = day.data ? todayColumns(day.data.profiles, day.data.tasks, dayFindings, viewedDate) : []
@@ -80,7 +81,8 @@ export function TodayPage() {
           <Link to="/findings/new" className={ui.btnPrimary}>
             + Log finding
           </Link>
-          <Link to="/tasks/new" className={ui.btnSecondary}>
+          {/* The new task starts on the day being viewed (today needs no param: it's the default). */}
+          <Link to={isToday ? '/tasks/new' : `/tasks/new?start=${viewedDate}`} className={ui.btnSecondary}>
             + Assign task
           </Link>
         </div>
@@ -128,6 +130,7 @@ export function TodayPage() {
                 isToday={isToday}
                 me={me}
                 projectName={projectName}
+                personName={personName}
               />
             ))}
           </div>

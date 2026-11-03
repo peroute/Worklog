@@ -107,6 +107,7 @@ export function TasksPage() {
               <TaskRow
                 task={task}
                 assigneeName={nameOf(profiles.data, task.assignedTo)}
+                creatorName={task.createdBy === task.assignedTo ? undefined : nameOf(profiles.data, task.createdBy)}
                 projectName={projectName(task.projectId)}
                 me={me}
               />
