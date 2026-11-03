@@ -1,12 +1,14 @@
 import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { setTaskStatus } from '../../data/tasks'
-import { hedi, khaushik, lead, makeTask } from '../../test/factories'
+import { listChecklist } from '../../data/checklist'
+import { hedi, khaushik, lead, makeChecklistItem, makeTask } from '../../test/factories'
 import { renderWithProviders } from '../../test/renderApp'
 import { TaskRow } from './TaskRow'
 
 vi.mock('../../data/tasks', () => import('../../test/mockData').then((m) => m.tasksModule))
+vi.mock('../../data/checklist', () => import('../../test/mockData').then((m) => m.checklistModule))
 vi.mock('../../lib/dates', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../lib/dates')>()),
   todayInTeamTz: () => '2026-10-29',
@@ -75,5 +77,50 @@ describe('TaskRow with the review flow', () => {
     renderWithProviders(<TaskRow task={task} me={hedi} />)
     await userEvent.click(screen.getByRole('checkbox', { name: 'Mark “Waiting” done' }))
     expect(setTaskStatus).toHaveBeenCalledWith('t2', 'todo')
+  })
+
+  describe('checklist', () => {
+    beforeEach(() => vi.clearAllMocks())
+
+    it('shows progress as a chip', () => {
+      renderWithProviders(<TaskRow task={makeTask({ checklistTotal: 5, checklistDone: 2 })} assigneeName="Hedi" me={hedi} />)
+      expect(screen.getByTitle('2 of 5 checklist items done')).toHaveTextContent('2/5')
+    })
+
+    it('shows no chip without a checklist', () => {
+      renderWithProviders(<TaskRow task={makeTask()} assigneeName="Hedi" me={hedi} />)
+      expect(screen.queryByTitle(/checklist items done/)).toBeNull()
+    })
+
+    it('turns the chip green when everything is ticked', () => {
+      renderWithProviders(<TaskRow task={makeTask({ checklistTotal: 3, checklistDone: 3 })} assigneeName="Hedi" me={hedi} />)
+      expect(screen.getByTitle('3 of 3 checklist items done')).toHaveClass('text-done')
+    })
+
+    it('asks before submitting with unticked items, listing them', async () => {
+      const task = makeTask({ id: 't1', title: 'Mine', assignedTo: hedi.id, createdBy: lead.id, checklistTotal: 2, checklistDone: 1 })
+      vi.mocked(listChecklist).mockResolvedValue([
+        makeChecklistItem({ taskId: 't1', title: 'Reproduce', done: true }),
+        makeChecklistItem({ taskId: 't1', title: 'Test on Android 14' }),
+      ])
+      vi.mocked(setTaskStatus).mockResolvedValue({ ...task, status: 'submitted' })
+      renderWithProviders(<TaskRow task={task} assigneeName="Hedi" me={hedi} />)
+
+      await userEvent.click(screen.getByRole('checkbox', { name: 'Mark “Mine” done' }))
+      expect(await screen.findByText("1 of 2 checklist items aren't ticked")).toBeInTheDocument()
+      expect(await screen.findByText('Test on Android 14')).toBeInTheDocument()
+      expect(setTaskStatus).not.toHaveBeenCalled()
+
+      await userEvent.click(screen.getByRole('button', { name: 'Submit anyway' }))
+      expect(setTaskStatus).toHaveBeenCalledWith('t1', 'submitted')
+    })
+
+    it('submits straight away when everything is ticked', async () => {
+      const task = makeTask({ id: 't1', title: 'Mine', assignedTo: hedi.id, createdBy: lead.id, checklistTotal: 2, checklistDone: 2 })
+      vi.mocked(setTaskStatus).mockResolvedValue({ ...task, status: 'submitted' })
+      renderWithProviders(<TaskRow task={task} assigneeName="Hedi" me={hedi} />)
+      await userEvent.click(screen.getByRole('checkbox', { name: 'Mark “Mine” done' }))
+      expect(setTaskStatus).toHaveBeenCalledWith('t1', 'submitted')
+    })
   })
 })

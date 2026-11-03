@@ -7,6 +7,7 @@ import type { Profile, Task } from '../../data/types'
 import { isOverdue } from '../../domain/bucketTasks'
 import { canEditContent, taskActions } from '../../domain/permissions'
 import { formatDayHeading, todayInTeamTz } from '../../lib/dates'
+import { useChecklist } from './checklistQueries'
 import { useDeleteTask, useSetTaskStatus } from './queries'
 import { Markdown } from '../../components/Markdown'
 
@@ -20,6 +21,8 @@ interface TaskRowProps {
 }
 
 const smallAction = 'rounded-md px-2 py-1 text-xs font-medium transition-colors'
+// Same shape as ui.tag, but the colours are chosen here so the "all done" green never fights the grey.
+const chipBase = 'inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium'
 
 /** One task line, reused on the Project, Tasks and Today pages. Owns its own actions. */
 export function TaskRow({ task, assigneeName, projectName, me }: TaskRowProps) {
@@ -27,6 +30,10 @@ export function TaskRow({ task, assigneeName, projectName, me }: TaskRowProps) {
   const deleteTask = useDeleteTask()
   const [expanded, setExpanded] = useState(false)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
+  const [confirmingSubmit, setConfirmingSubmit] = useState(false)
+  // Item titles are only fetched when the dialog opens: a list page can show dozens of rows.
+  const checklist = useChecklist(task.id, { enabled: confirmingSubmit })
+  const unticked = task.checklistTotal - task.checklistDone
   const [error, setError] = useState<string | null>(null)
 
   const overdue = isOverdue(task, todayInTeamTz())
@@ -57,9 +64,11 @@ export function TaskRow({ task, assigneeName, projectName, me }: TaskRowProps) {
             checked={done}
             disabled={!canToggle || setStatus.isPending}
             aria-label={`Mark “${task.title}” done`}
-            onChange={(e) =>
-              run(() => setStatus.mutateAsync({ id: task.id, status: e.target.checked ? 'submitted' : 'todo' }))
-            }
+            onChange={(e) => {
+              // Submitting with unticked items asks first; un-submitting never does.
+              if (e.target.checked && unticked > 0) setConfirmingSubmit(true)
+              else run(() => setStatus.mutateAsync({ id: task.id, status: e.target.checked ? 'submitted' : 'todo' }))
+            }}
             className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer accent-blue-600 disabled:cursor-not-allowed"
           />
         ) : (
@@ -81,6 +90,15 @@ export function TaskRow({ task, assigneeName, projectName, me }: TaskRowProps) {
           <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-fg-muted">
             {task.status !== 'todo' && <StatusBadge status={task.status} />}
             {assigneeName && <span>{assigneeName}</span>}
+            {task.checklistTotal > 0 && (
+              <span
+                title={`${task.checklistDone} of ${task.checklistTotal} checklist items done`}
+                className={`${chipBase} ${unticked === 0 ? 'bg-done-soft text-done' : 'bg-surface-2 text-fg-muted'}`}
+              >
+                <span aria-hidden="true">✓</span>
+                {task.checklistDone}/{task.checklistTotal}
+              </span>
+            )}
             {overdue && (
               <span className="rounded-md bg-overdue-soft px-1.5 py-0.5 font-semibold text-overdue">Overdue</span>
             )}
@@ -143,6 +161,35 @@ export function TaskRow({ task, assigneeName, projectName, me }: TaskRowProps) {
         busy={deleteTask.isPending}
         onCancel={() => setConfirmingDelete(false)}
         onConfirm={() => run(() => deleteTask.mutateAsync(task.id))}
+      />
+
+      <ConfirmDialog
+        open={confirmingSubmit}
+        tone="primary"
+        title={`${unticked} of ${task.checklistTotal} checklist items aren't ticked`}
+        body={
+          <>
+            {checklist.data && (
+              <ul className="list-disc space-y-0.5 pl-5 text-fg">
+                {checklist.data
+                  .filter((item) => !item.done)
+                  .map((item) => (
+                    <li key={item.id}>{item.title}</li>
+                  ))}
+              </ul>
+            )}
+            <p className="mt-2">You can still submit. Open the task to add a note saying why.</p>
+          </>
+        }
+        confirmLabel="Submit anyway"
+        busy={setStatus.isPending}
+        onCancel={() => setConfirmingSubmit(false)}
+        onConfirm={() =>
+          run(async () => {
+            await setStatus.mutateAsync({ id: task.id, status: 'submitted' })
+            setConfirmingSubmit(false)
+          })
+        }
       />
     </div>
   )

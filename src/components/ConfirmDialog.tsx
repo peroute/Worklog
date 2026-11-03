@@ -12,9 +12,11 @@ interface ConfirmDialogProps {
   busy?: boolean
   /** Disables only the confirm button (e.g. still loading what it will do). */
   confirmDisabled?: boolean
+  /** 'danger' (red, default) for destructive actions; 'primary' (blue) for "are you sure?" on safe ones. */
+  tone?: 'danger' | 'primary'
 }
 
-/** A simple modal "are you sure?" for destructive actions. Sits at the bottom on phones. */
+/** A simple modal "are you sure?". Red by default (destructive actions). Sits at the bottom on phones. */
 export function ConfirmDialog({
   open,
   title,
@@ -24,6 +26,7 @@ export function ConfirmDialog({
   onCancel,
   busy = false,
   confirmDisabled = false,
+  tone = 'danger',
 }: ConfirmDialogProps) {
   if (!open) return null
   return (
@@ -42,7 +45,12 @@ export function ConfirmDialog({
           <button type="button" onClick={onCancel} disabled={busy} className={ui.btnSecondary}>
             Cancel
           </button>
-          <button type="button" onClick={onConfirm} disabled={busy || confirmDisabled} className={ui.btnDanger}>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={busy || confirmDisabled}
+            className={tone === 'danger' ? ui.btnDanger : ui.btnPrimary}
+          >
             {confirmLabel}
           </button>
         </div>

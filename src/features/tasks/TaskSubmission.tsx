@@ -6,6 +6,7 @@ import { formatDateTime } from '../../lib/dates'
 import { nameOf, useProfiles } from '../team/queries'
 import { AttachmentInput } from './AttachmentInput'
 import { AttachmentList } from './AttachmentList'
+import { useChecklist } from './checklistQueries'
 import { useSubmitWork } from './queries'
 
 /** submit: todo → submitted. resubmit: changes_requested → resubmitted. edit: change note/proof, same status. */
@@ -125,6 +126,11 @@ function SubmitWorkForm({ task, me, mode, proof, totalAttachments, nextPosition,
   const headingId = useId()
   const noteId = useId()
   const submitWork = useSubmitWork(task.id)
+  const checklist = useChecklist(task.id)
+  // Only when handing work in: editing an existing submission doesn't change what was ticked.
+  const handingIn = mode === 'submit' || mode === 'resubmit'
+  const items = checklist.data ?? []
+  const unticked = items.filter((item) => !item.done)
   const [note, setNote] = useState(task.submissionNote ?? '')
   const [files, setFiles] = useState<File[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -199,6 +205,20 @@ function SubmitWorkForm({ task, me, mode, proof, totalAttachments, nextPosition,
           <AttachmentList attachments={proof} task={task} me={me} />
           <AttachmentInput value={files} onChange={setFiles} existingCount={totalAttachments} />
         </div>
+
+        {handingIn && unticked.length > 0 && (
+          <div role="status" className="rounded-lg border border-open-edge/40 bg-open-soft px-3 py-2.5 text-sm text-open">
+            <p className="font-medium">
+              {unticked.length} of {items.length} checklist items aren't ticked. You can still submit — say why in your
+              note.
+            </p>
+            <ul className="mt-1 list-disc pl-5">
+              {unticked.map((item) => (
+                <li key={item.id}>{item.title}</li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         <div className="flex justify-end gap-2 border-t border-line pt-4">
           <button type="button" onClick={onClose} className={ui.btnSecondary} disabled={submitWork.isPending}>
