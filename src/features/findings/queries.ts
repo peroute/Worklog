@@ -4,12 +4,10 @@ import {
   deleteFinding,
   getFinding,
   listFindings,
-  setFindingStatus,
-  requestChangesFinding,
   updateFinding,
 } from '../../data/findings'
 import { deleteFindingImage, getFindingImagesFor, uploadFindingImages } from '../../data/images'
-import type { FindingImage, FindingStatus, NewFinding } from '../../data/types'
+import type { FindingImage, NewFinding } from '../../data/types'
 
 type FindingFilter = Parameters<typeof listFindings>[0]
 
@@ -44,7 +42,7 @@ export function useFindingImages(findingIds: string[], enabled: boolean) {
 /** Everything that shows findings or their counts. */
 function invalidateFindingViews(queryClient: QueryClient) {
   return Promise.all(
-    [['findings'], ['projects'], ['today'], ['review'], ['comments']].map((queryKey) =>
+    [['findings'], ['projects'], ['today'], ['review'], ['comments'], ['activity'], ['trash']].map((queryKey) =>
       queryClient.invalidateQueries({ queryKey }),
     ),
   )
@@ -80,27 +78,10 @@ export function useUpdateFinding() {
   })
 }
 
-export function useSetFindingStatus() {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: ({ id, status }: { id: string; status: FindingStatus }) => setFindingStatus(id, status),
-    onSuccess: () => invalidateFindingViews(queryClient),
-  })
-}
-
 export function useDeleteFinding() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => deleteFinding(id),
-    onSuccess: () => invalidateFindingViews(queryClient),
-  })
-}
-
-/** Lead only: comment + changes_requested in one step. */
-export function useRequestChangesFinding() {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: ({ id, body }: { id: string; body: string }) => requestChangesFinding(id, body),
     onSuccess: () => invalidateFindingViews(queryClient),
   })
 }

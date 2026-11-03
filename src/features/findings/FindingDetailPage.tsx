@@ -6,15 +6,17 @@ import { ErrorState } from '../../components/ErrorState'
 import { LoadingState } from '../../components/LoadingState'
 import { StatusBadge } from '../../components/StatusBadge'
 import { ui } from '../../components/ui'
-import { canComment, canEditContent, findingActions } from '../../domain/permissions'
+import { FINDING_ACTION_TARGET, findingActions, type FindingAction, type TaskAction } from '../../domain/actions'
+import { whoseTurnFinding } from '../../domain/turn'
 import { formatDayHeading } from '../../lib/dates'
 import { useMe } from '../auth/useMe'
-import { useProject } from '../projects/queries'
+import { useProjects } from '../projects/queries'
 import { useTasks } from '../tasks/queries'
 import { nameOf, useProfiles } from '../team/queries'
-import { CommentThread } from '../comments/CommentThread'
-import { RequestChangesDialog } from '../review/RequestChangesDialog'
-import { useDeleteFinding, useFinding, useRequestChangesFinding, useSetFindingStatus } from './queries'
+import { StatusActions } from '../items/StatusActions'
+import { Timeline } from '../items/Timeline'
+import { useItemStatusMutation } from '../items/queries'
+import { useDeleteFinding, useFinding } from './queries'
 import { Markdown } from '../../components/Markdown'
 
 export function FindingDetailPage() {
@@ -26,13 +28,11 @@ export function FindingDetailPage() {
   const { me } = useMe()
   const finding = useFinding(id)
   const profiles = useProfiles()
-  const projectId = finding.data?.projectId ?? ''
-  const project = useProject(projectId, { enabled: Boolean(projectId) })
-  const tasks = useTasks({ projectId }, { enabled: Boolean(finding.data?.taskId) })
-  const setStatus = useSetFindingStatus()
+  // Whose turn it is depends on the task's creator / the project's creator, so load both lists.
+  const projects = useProjects()
+  const tasks = useTasks({})
+  const setStatus = useItemStatusMutation()
   const deleteFinding = useDeleteFinding()
-  const requestChanges = useRequestChangesFinding()
-  const [requestingChanges, setRequestingChanges] = useState(false)
 
   const [enlarged, setEnlarged] = useState<number | null>(null)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
@@ -42,11 +42,15 @@ export function FindingDetailPage() {
   if (finding.isError) return <ErrorState error={finding.error} />
 
   const f = finding.data
+  const project = projects.data?.find((p) => p.id === f.projectId)
   const linkedTask = tasks.data?.find((t) => t.id === f.taskId)
-  // Approved work is frozen for the author; only the lead can still edit it.
-  const canEdit = me ? canEditContent(me, f.authorId, f.status === 'approved') : false
-  const actions = me ? findingActions(me, f) : []
-  const setTo = (status: typeof f.status) => run(() => setStatus.mutateAsync({ id: f.id, status }))
+  // Don't guess who's up before we know: the buttons would jump between "primary" and "More".
+  const turnKnown = !projects.isPending && !tasks.isPending && !profiles.isPending
+  const turn = turnKnown
+    ? whoseTurnFinding(f, { tasks: tasks.data ?? [], projects: projects.data ?? [], profiles: profiles.data ?? [] })
+    : []
+  const actions = me && turnKnown ? findingActions(me, f) : []
+  const waitingOn = turn.map((id) => nameOf(profiles.data, id)).join(', ')
 
   async function run(action: () => Promise<unknown>) {
     setActionError(null)
@@ -55,6 +59,16 @@ export function FindingDetailPage() {
     } catch (err) {
       setActionError(err instanceof Error ? err.message : 'Something went wrong')
     }
+  }
+
+  // The refused-move message is shown by StatusActions; the mutation refetches the finding either way.
+  const onRun = async (action: FindingAction | TaskAction, text?: string) => {
+    await setStatus.mutateAsync({
+      type: 'finding',
+      id: f.id,
+      to: FINDING_ACTION_TARGET[action as FindingAction],
+      comment: text,
+    })
   }
 
   return (
@@ -67,9 +81,9 @@ export function FindingDetailPage() {
       {actionError && <ErrorState error={new Error(actionError)} />}
 
       <header className="space-y-3">
-        {project.data && (
-          <Link to={`/projects/${project.data.id}`} className="text-sm font-medium text-fg-muted hover:text-fg">
-            {project.data.name}
+        {project && (
+          <Link to={`/projects/${project.id}`} className="text-sm font-medium text-fg-muted hover:text-fg">
+            {project.name}
           </Link>
         )}
         <h1 className={ui.pageTitle}>{f.title}</h1>
@@ -80,56 +94,20 @@ export function FindingDetailPage() {
           </span>
           <span>Logged {formatDayHeading(f.findingDate)}</span>
           <StatusBadge status={f.status} />
-          {linkedTask && (
-            <>
-              <span className={ui.tag}>Task: {linkedTask.title}</span>
-            </>
-          )}
+          {linkedTask && <span className={ui.tag}>Task: {linkedTask.title}</span>}
         </div>
+        {waitingOn && <p className="text-sm text-fg-muted">Waiting on {waitingOn}</p>}
       </header>
 
-      <div className="flex flex-wrap gap-2">
-        {/* Only the buttons this person may use right now (mirrors the DB rules). */}
-        {actions.includes('approve') && (
-          <button
-            type="button"
-            disabled={setStatus.isPending}
-            onClick={() => setTo('approved')}
-            className={ui.btnPrimary}
-          >
-            Approve
-          </button>
-        )}
-        {actions.includes('requestChanges') && (
-          <button type="button" onClick={() => setRequestingChanges(true)} className={ui.btnSecondary}>
-            Request changes
-          </button>
-        )}
-        {actions.includes('resubmit') && (
-          <button type="button" disabled={setStatus.isPending} onClick={() => setTo('resubmitted')} className={ui.btnPrimary}>
-            Resubmit
-          </button>
-        )}
-        {actions.includes('reopen') && (
-          <button
-            type="button"
-            disabled={setStatus.isPending}
-            onClick={() => setTo('submitted')}
-            className={ui.btnSecondary}
-          >
-            Reopen
-          </button>
-        )}
-        {canEdit && (
-          <>
-            <Link to={`/findings/${f.id}/edit`} className={ui.btnSecondary}>
-              Edit
-            </Link>
-            <button type="button" onClick={() => setConfirmingDelete(true)} className={ui.btnDangerGhost}>
-              Delete
-            </button>
-          </>
-        )}
+      <div className="flex flex-wrap items-start gap-2">
+        {/* Only the moves that make sense for this status. Buttons when it's your turn, otherwise under More. */}
+        <StatusActions actions={actions} primary={Boolean(me && turn.includes(me.id))} onRun={onRun} />
+        <Link to={`/findings/${f.id}/edit`} className={ui.btnSecondary}>
+          Edit
+        </Link>
+        <button type="button" onClick={() => setConfirmingDelete(true)} className={ui.btnDangerGhost}>
+          Delete
+        </button>
       </div>
 
       {/* Plain text only: React escapes it, so pasted HTML shows as text, never as markup. */}
@@ -180,26 +158,14 @@ export function FindingDetailPage() {
         </div>
       )}
 
-      <CommentThread
-        target={{ findingId: f.id }}
-        canComment={me ? canComment(me, { kind: 'finding', authorId: f.authorId }) : false}
-      />
-
-      <RequestChangesDialog
-        open={requestingChanges}
-        itemTitle={f.title}
-        onCancel={() => setRequestingChanges(false)}
-        onSubmit={async (body) => {
-          await requestChanges.mutateAsync({ id: f.id, body })
-          setRequestingChanges(false)
-        }}
-      />
+      <Timeline key={f.id} target={{ findingId: f.id }} deleted={f.deletedAt !== null} />
 
       <ConfirmDialog
         open={confirmingDelete}
-        title="Delete this finding?"
-        body={`This deletes “${f.title}” and its ${f.images.length} screenshot(s). This cannot be undone.`}
-        confirmLabel="Delete finding"
+        title="Move to Trash?"
+        body={`“${f.title}” and its ${f.images.length} screenshot(s) will be hidden. You can restore it from Trash.`}
+        confirmLabel="Move to Trash"
+        tone="primary"
         busy={deleteFinding.isPending}
         onCancel={() => setConfirmingDelete(false)}
         onConfirm={() =>

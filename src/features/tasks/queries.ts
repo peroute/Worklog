@@ -19,9 +19,7 @@ import {
   deleteTask,
   getTask,
   listTasks,
-  requestChangesTask,
   setTaskStatus,
-  submitTask,
   updateTask,
 } from '../../data/tasks'
 import type { AttachmentKind, ChecklistItem, NewTask, TaskAttachment, TaskStatus } from '../../data/types'
@@ -53,7 +51,7 @@ export function useTaskAttachments(taskId: string, options: { enabled?: boolean 
 /** Everything that shows tasks or their counts (checklist changes use it too). */
 export function invalidateTaskViews(queryClient: QueryClient) {
   return Promise.all(
-    [['tasks'], ['projects'], ['today'], ['review'], ['comments']].map((queryKey) =>
+    [['tasks'], ['projects'], ['today'], ['review'], ['comments'], ['activity'], ['trash']].map((queryKey) =>
       queryClient.invalidateQueries({ queryKey }),
     ),
   )
@@ -164,26 +162,26 @@ interface SubmitWorkArgs {
   /** Position for the first new file (after the ones already saved). */
   startPosition: number
   /** Status to move to, or null to only save the note/files (editing a submission). */
-  status: 'submitted' | 'resubmitted' | null
-  /** false after approval for non-leads: the DB freezes the note, so only files are added. */
-  saveNote: boolean
+  to: TaskStatus | null
 }
 
 /**
- * The assignee hands in their work: proof files first, then note + status together.
- * If any file fails, we stop BEFORE changing the status, so the lead never reviews a
- * half-uploaded submission. Files that did upload stay saved and show on retry.
+ * Hands in work: proof files first, then the note (and the status move, if any) in one call.
+ * If any file fails, we stop BEFORE changing the status, so nobody reviews a half-uploaded
+ * submission. Files that did upload stay saved and show on retry.
  */
 export function useSubmitWork(taskId: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async ({ note, files, startPosition, status, saveNote }: SubmitWorkArgs) => {
+    mutationFn: async ({ note, files, startPosition, to }: SubmitWorkArgs) => {
       const prepared = await Promise.all(files.map((file) => prepareAttachment(file)))
       const { failed } = await uploadTaskAttachments(taskId, prepared, startPosition, 'proof')
       if (failed > 0) {
         throw new Error(`${failed} file(s) failed to upload, so nothing was submitted. Try again.`)
       }
-      if (saveNote || status) await submitTask(taskId, { note: saveNote ? note : undefined, status })
+      // The note rides along with the status move so both land or neither does.
+      if (to) await setTaskStatus(taskId, to, note ? { note } : {})
+      else await updateTask(taskId, { submissionNote: note })
     },
     // Invalidate on failure too: some files may have uploaded before one failed.
     onSettled: () => invalidateTaskViews(queryClient),
@@ -206,16 +204,6 @@ export function useRemoveTaskAttachment() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (attachment: TaskAttachment) => deleteTaskAttachment(attachment),
-    onSuccess: () => invalidateTaskViews(queryClient),
-  })
-}
-
-
-/** Lead only: comment + changes_requested in one step. */
-export function useRequestChangesTask() {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: ({ id, body }: { id: string; body: string }) => requestChangesTask(id, body),
     onSuccess: () => invalidateTaskViews(queryClient),
   })
 }

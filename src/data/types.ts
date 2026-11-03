@@ -2,15 +2,24 @@
 // so swapping the backend later means changing src/data/*, not the screens.
 // Dates are 'YYYY-MM-DD' strings; timestamps are ISO strings.
 
-export type Role = 'lead' | 'member'
-
 export interface Profile {
   id: string
   displayName: string
-  role: Role
 }
 
-export interface Project {
+/** Points at a task or a finding (activity feed, NEW markers, links). */
+export interface ItemRef {
+  type: 'task' | 'finding'
+  id: string
+}
+
+/** Set when an item is soft-deleted (hidden, not erased). Live reads never return deleted rows. */
+interface SoftDeletable {
+  deletedAt: string | null
+  deletedBy: string | null
+}
+
+export interface Project extends SoftDeletable {
   id: string
   name: string
   description: string | null
@@ -27,7 +36,7 @@ export interface ProjectSummary extends Project {
 export type AttachmentKind = 'brief' | 'proof'
 
 /** A file attached to a task (screenshot or document). */
-export interface TaskAttachment {
+export interface TaskAttachment extends SoftDeletable {
   id: string
   taskId: string
   storagePath: string
@@ -35,7 +44,7 @@ export interface TaskAttachment {
   mimeType: string
   sizeBytes: number
   position: number
-  /** Who added it: the task's creator (the brief), the assignee (proof of work), or the lead. */
+  /** Who added it (the brief from the creator, or proof from whoever did the work). */
   uploadedBy: string
   kind: AttachmentKind
   /**
@@ -46,12 +55,12 @@ export interface TaskAttachment {
 }
 
 /**
- * todo → submitted (waiting for lead) → approved | changes_requested → resubmitted → approved | changes_requested.
- * Same words as FindingStatus, plus `todo` (tasks exist before the work is done).
+ * todo ⇄ in_progress ⇄ blocked; done directly, or via waiting_for_review when the task needs review.
+ * Moves go through setTaskStatus (the database enforces the allowed arrows).
  */
-export type TaskStatus = 'todo' | 'submitted' | 'changes_requested' | 'resubmitted' | 'approved'
+export type TaskStatus = 'todo' | 'in_progress' | 'blocked' | 'waiting_for_review' | 'done'
 
-export interface Task {
+export interface Task extends SoftDeletable {
   id: string
   /** null = not tied to any project. */
   projectId: string | null
@@ -62,6 +71,14 @@ export interface Task {
   /** First day it shows on Today ('YYYY-MM-DD'); null = visible right away. */
   startDate: string | null
   status: TaskStatus
+  /** A second person must approve before it counts as done. */
+  needsReview: boolean
+  /** Why it is blocked; set only while status is 'blocked'. */
+  blockedReason: string | null
+  /** Who handed it in for review (set by the database). */
+  submittedBy: string | null
+  /** Who approved it (set by the database). */
+  approvedBy: string | null
   doneAt: string | null
   /** The assignee's "what I did" note, handed in with the proof files. */
   submissionNote: string | null
@@ -72,7 +89,7 @@ export interface Task {
   checklistDone: number
 }
 
-/** One step in a task's checklist. The creator/lead writes it; the assignee ticks it. */
+/** One step in a task's checklist. Anyone on the team can write and tick it. */
 export interface ChecklistItem {
   id: string
   taskId: string
@@ -92,12 +109,13 @@ export interface NewTask {
   assignedTo: string
   deadline: string | null
   startDate: string | null
+  needsReview: boolean
 }
 
-/** submitted (waiting for lead) → approved | changes_requested → resubmitted → approved | changes_requested */
-export type FindingStatus = 'submitted' | 'changes_requested' | 'resubmitted' | 'approved'
+/** open → fixed → verified (by someone other than the fixer); needs_info / not_a_bug are side exits. */
+export type FindingStatus = 'open' | 'needs_info' | 'fixed' | 'not_a_bug' | 'verified'
 
-export interface Finding {
+export interface Finding extends SoftDeletable {
   id: string
   projectId: string
   taskId: string | null
@@ -106,6 +124,8 @@ export interface Finding {
   findingDate: string
   status: FindingStatus
   authorId: string
+  /** Who marked it fixed (set by the database); null unless status is 'fixed' or 'verified'. */
+  fixedBy: string | null
   createdAt: string
   updatedAt: string
   imageCount: number
@@ -119,7 +139,7 @@ export interface NewFinding {
   findingDate: string
 }
 
-export interface FindingImage {
+export interface FindingImage extends SoftDeletable {
   id: string
   findingId: string
   storagePath: string
@@ -143,3 +163,36 @@ export interface Comment {
 
 /** What a comment thread is attached to. */
 export type CommentTarget = { findingId: string } | { taskId: string }
+
+/** Every action the database writes into the activity history (see the activity triggers). */
+export type ActivityAction =
+  | 'created'
+  | 'edited'
+  | 'status_changed'
+  | 'deleted'
+  | 'restored'
+  | 'file_added'
+  | 'file_removed'
+  | 'checklist_added'
+  | 'checklist_renamed'
+  | 'checklist_removed'
+  | 'checklist_ticked'
+  | 'checklist_unticked'
+
+/** One line of an item's history. `details` shape depends on `action`; null actor = done by an admin. */
+export interface ActivityEntry {
+  id: string
+  actorId: string | null
+  action: ActivityAction
+  details: Record<string, unknown>
+  createdAt: string
+}
+
+/** A soft-deleted project, task or finding. `title` is the project name for projects. */
+export interface TrashItem {
+  type: 'project' | 'task' | 'finding'
+  id: string
+  title: string
+  deletedAt: string
+  deletedBy: string | null
+}

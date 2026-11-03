@@ -17,17 +17,17 @@ export const projectsModule = {
   updateProject: vi.fn(),
   getProjectDeleteCounts: vi.fn(),
   deleteProject: vi.fn(),
+  restoreProject: vi.fn(),
 }
 
 export const tasksModule = {
   listTasks: vi.fn(async () => []),
   getTask: vi.fn(),
-  requestChangesTask: vi.fn(),
   createTask: vi.fn(),
   updateTask: vi.fn(),
   setTaskStatus: vi.fn(),
-  submitTask: vi.fn(),
   deleteTask: vi.fn(),
+  restoreTask: vi.fn(),
 }
 
 export const findingsModule = {
@@ -37,7 +37,7 @@ export const findingsModule = {
   updateFinding: vi.fn(),
   setFindingStatus: vi.fn(),
   deleteFinding: vi.fn(),
-  requestChangesFinding: vi.fn(),
+  restoreFinding: vi.fn(),
 }
 
 export const commentsModule = {
@@ -51,15 +51,11 @@ export const taskAttachmentsModule = {
   uploadTaskAttachments: vi.fn(async () => ({ uploaded: 0, failed: 0 })),
   listTaskAttachments: vi.fn(async () => []),
   deleteTaskAttachment: vi.fn(),
-  listTaskAttachmentPaths: vi.fn(async () => []),
-  removeTaskAttachmentFiles: vi.fn(),
 }
 
 export const imagesModule = {
   uploadFindingImages: vi.fn(),
   deleteFindingImage: vi.fn(),
-  listImagePaths: vi.fn(),
-  removeStoredFiles: vi.fn(),
   signImagePaths: vi.fn(),
   getFindingImagesFor: vi.fn(async () => ({})),
 }
@@ -71,4 +67,19 @@ export const checklistModule = {
   setChecklistItemDone: vi.fn(),
   setChecklistPositions: vi.fn(async () => undefined),
   removeChecklistItems: vi.fn(async () => undefined),
+}
+
+export const activityModule = {
+  listActivity: vi.fn(async () => []),
+}
+
+export const readsModule = {
+  getLastSeen: vi.fn(async () => null),
+  markSeen: vi.fn(async () => undefined),
+  listUnseen: vi.fn(async () => []),
+}
+
+export const trashModule = {
+  listTrash: vi.fn(async () => []),
+  restoreItem: vi.fn(async () => undefined),
 }

@@ -4,11 +4,9 @@ import type { Profile } from '../data/types'
 export const ALL_ASSIGNEES = 'all'
 
 /**
- * Which assignee the Tasks page starts filtered to.
- * Members land on their own work; the lead oversees the team, so they start on everyone.
+ * Which assignee the Tasks page starts filtered to: your own work.
  * While the profile is still loading we show everyone rather than an empty list.
  */
 export function defaultAssigneeFilter(me: Profile | undefined): string {
-  if (!me || me.role === 'lead') return ALL_ASSIGNEES
-  return me.id
+  return me?.id ?? ALL_ASSIGNEES
 }

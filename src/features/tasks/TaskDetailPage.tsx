@@ -1,47 +1,36 @@
 import { useState } from 'react'
-import { Link, useLocation, useParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { Avatar } from '../../components/Avatar'
+import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { ErrorState } from '../../components/ErrorState'
 import { LoadingState } from '../../components/LoadingState'
+import { Markdown } from '../../components/Markdown'
 import { StatusBadge } from '../../components/StatusBadge'
 import { statusEdge, ui } from '../../components/ui'
-import type { TaskStatus } from '../../data/types'
+import { needsReason, taskActionTarget, taskActions, type FindingAction, type TaskAction } from '../../domain/actions'
 import { isOverdue, notStartedBy } from '../../domain/bucketTasks'
-import { canComment, canEditChecklist, canEditContent, taskActions, type TaskAction } from '../../domain/permissions'
+import { whoseTurnTask } from '../../domain/turn'
 import { formatDateTime, formatDayHeading, todayInTeamTz } from '../../lib/dates'
 import { useMe } from '../auth/useMe'
-import { CommentThread } from '../comments/CommentThread'
+import { useFindings } from '../findings/queries'
+import { StatusActions } from '../items/StatusActions'
+import { Timeline } from '../items/Timeline'
+import { useItemStatusMutation } from '../items/queries'
 import { useProject } from '../projects/queries'
-import { RequestChangesDialog } from '../review/RequestChangesDialog'
 import { nameOf, useProfiles } from '../team/queries'
-import { Markdown } from '../../components/Markdown'
 import { AttachmentList } from './AttachmentList'
 import { ChecklistSection } from './ChecklistSection'
-import { useRequestChangesTask, useSetTaskStatus, useTask, useTaskAttachments } from './queries'
+import { useDeleteTask, useTask, useTaskAttachments } from './queries'
 import { TaskSubmission, type SubmissionMode } from './TaskSubmission'
-
-type DirectAction = Exclude<TaskAction, 'requestChanges' | 'markDone' | 'resubmit'>
-
-// Button label + target status for actions that change the status in one click.
-const ACTIONS: Record<DirectAction, { label: string; to: TaskStatus; primary: boolean }> = {
-  undoDone: { label: 'Withdraw submission', to: 'todo', primary: false },
-  approve: { label: 'Approve', to: 'approved', primary: true },
-  reopen: { label: 'Reopen', to: 'todo', primary: false },
-}
-
-// Handing work in opens the submission form (note + proof) instead of flipping the status blindly.
-const SUBMIT_ACTIONS: Partial<Record<TaskAction, { label: string; mode: SubmissionMode }>> = {
-  markDone: { label: 'Submit work', mode: 'submit' },
-  resubmit: { label: 'Resubmit', mode: 'resubmit' },
-}
 
 /**
  * A task's own page, top to bottom in the order you read it:
- * what to do (title, details, brief files) → actions → what was done (submission) → discussion.
+ * what to do (title, details, brief files) → actions → what was done (submission) → findings → timeline.
  */
 export function TaskDetailPage() {
   const { id = '' } = useParams()
   const location = useLocation()
+  const navigate = useNavigate()
   // Set by the task form when some attachments didn't upload (the task itself was saved).
   const navState = location.state as { failedUploads?: number; checklistError?: string | null } | null
   const failedUploads = navState?.failedUploads ?? 0
@@ -52,18 +41,17 @@ export function TaskDetailPage() {
   const profiles = useProfiles()
   const projectId = task.data?.projectId ?? ''
   const project = useProject(projectId, { enabled: Boolean(projectId) })
-  const setStatus = useSetTaskStatus()
-  const requestChanges = useRequestChangesTask()
-  const [requestingChanges, setRequestingChanges] = useState(false)
+  const findings = useFindings({ taskId: id })
+  const setStatus = useItemStatusMutation()
+  const deleteTask = useDeleteTask()
   const [submissionMode, setSubmissionMode] = useState<SubmissionMode | null>(null)
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   if (task.isPending) return <LoadingState />
   if (task.isError) return <ErrorState error={task.error} />
 
   const t = task.data
-  const actions = me ? taskActions(me, t) : []
-  const canEdit = me ? canEditContent(me, t.createdBy, t.status === 'approved') : false
   const today = todayInTeamTz()
   const overdue = isOverdue(t, today)
   const assignee = nameOf(profiles.data, t.assignedTo)
@@ -72,15 +60,38 @@ export function TaskDetailPage() {
   // Deliberately no "created" date: a task planned a week ahead should read as starting on its
   // start day, not as something that's been sitting there since it was typed up.
   const creator = nameOf(profiles.data, t.createdBy)
-  // The checklist shows when it has items, or when this viewer could start one.
-  const showChecklist = t.checklistTotal > 0 || (me ? canEditChecklist(me, t) : false)
 
-  async function setTo(status: TaskStatus) {
+  // Don't guess whose turn it is before the team list is in: the buttons would jump to "More" and back.
+  const turn = profiles.data ? whoseTurnTask(t, profiles.data) : []
+  const waitingOn = turn.map((who) => nameOf(profiles.data, who)).join(', ')
+  // "Mark done" opens the submission form below instead; hide the button while it's open.
+  const actions = me && profiles.data ? taskActions(me, t).filter((a) => !(a === 'finish' && submissionMode)) : []
+  const linkedFindings = findings.data ?? []
+
+  const onRun = async (action: FindingAction | TaskAction, text?: string) => {
+    const taskAction = action as TaskAction
+    if (taskAction === 'finish') {
+      // Finishing is a hand-in: the note and proof go together with the status move.
+      setSubmissionMode('submit')
+      return
+    }
+    // The refused-move message is shown by StatusActions; the mutation refetches the task either way.
+    await setStatus.mutateAsync({
+      type: 'task',
+      id: t.id,
+      to: taskActionTarget(taskAction, t),
+      ...(needsReason(taskAction) ? { reason: text } : { comment: text }),
+    })
+  }
+
+  async function moveToTrash() {
     setError(null)
     try {
-      await setStatus.mutateAsync({ id: t.id, status })
+      await deleteTask.mutateAsync(t.id)
+      navigate(t.projectId ? `/projects/${t.projectId}` : '/tasks', { replace: true })
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not change the status')
+      setConfirmingDelete(false)
+      setError(err instanceof Error ? err.message : 'Could not move the task to Trash')
     }
   }
 
@@ -117,6 +128,9 @@ export function TaskDetailPage() {
           )}
           <StatusBadge status={t.status} />
         </div>
+        {t.status === 'blocked' && t.blockedReason && (
+          <p className="text-sm font-medium text-overdue">Blocked because: {t.blockedReason}</p>
+        )}
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-fg-muted">
           <span>From {creator}</span>
           {t.startDate && (
@@ -125,67 +139,38 @@ export function TaskDetailPage() {
             </span>
           )}
           {t.doneAt && <span>Finished {formatDateTime(t.doneAt)}</span>}
+          {waitingOn && <span>Waiting on {waitingOn}</span>}
         </div>
 
-        {(t.explanation || showChecklist || brief.length > 0) && (
-          <div className="space-y-3 border-t border-line pt-4">
-            {t.explanation && (
-              <div>
-                <h2 className={`${ui.sectionTitle} mb-1.5`}>Details</h2>
-                {/* Markdown without raw HTML: pasted markup shows as text, never runs. */}
-                <Markdown className="text-sm leading-relaxed text-fg">{t.explanation}</Markdown>
-              </div>
-            )}
-            {showChecklist && <ChecklistSection task={t} me={me} />}
-            {brief.length > 0 && (
-              <div>
-                <h2 className={`${ui.sectionTitle} mb-1.5`}>
-                  Attachments <span className="text-fg-muted">({brief.length})</span>
-                </h2>
-                <AttachmentList attachments={brief} task={t} me={me} />
-              </div>
-            )}
-          </div>
-        )}
+        <div className="space-y-3 border-t border-line pt-4">
+          {t.explanation && (
+            <div>
+              <h2 className={`${ui.sectionTitle} mb-1.5`}>Details</h2>
+              {/* Markdown without raw HTML: pasted markup shows as text, never runs. */}
+              <Markdown className="text-sm leading-relaxed text-fg">{t.explanation}</Markdown>
+            </div>
+          )}
+          <ChecklistSection task={t} me={me} />
+          {brief.length > 0 && (
+            <div>
+              <h2 className={`${ui.sectionTitle} mb-1.5`}>
+                Attachments <span className="text-fg-muted">({brief.length})</span>
+              </h2>
+              <AttachmentList attachments={brief} task={t} me={me} />
+            </div>
+          )}
+        </div>
         {attachments.isError && <ErrorState error={attachments.error} />}
       </header>
 
-      <div className="flex flex-wrap gap-2">
-        {actions.map((action) => {
-          if (action === 'requestChanges') {
-            return (
-              <button key={action} type="button" onClick={() => setRequestingChanges(true)} className={ui.btnSecondary}>
-                Request changes
-              </button>
-            )
-          }
-          const submit = SUBMIT_ACTIONS[action]
-          if (submit) {
-            if (submissionMode) return null // the form is already open below
-            return (
-              <button key={action} type="button" onClick={() => setSubmissionMode(submit.mode)} className={ui.btnPrimary}>
-                {submit.label}
-              </button>
-            )
-          }
-          const direct = ACTIONS[action as DirectAction]
-          return (
-            <button
-              key={action}
-              type="button"
-              disabled={setStatus.isPending}
-              onClick={() => setTo(direct.to)}
-              className={direct.primary ? ui.btnPrimary : ui.btnSecondary}
-            >
-              {direct.label}
-            </button>
-          )
-        })}
-        {canEdit && (
-          <Link to={`/tasks/${t.id}/edit`} className={ui.btnSecondary}>
-            Edit
-          </Link>
-        )}
+      <div className="flex flex-wrap items-start gap-2">
+        <StatusActions actions={actions} primary={Boolean(me && turn.includes(me.id))} onRun={onRun} />
+        <Link to={`/tasks/${t.id}/edit`} className={ui.btnSecondary}>
+          Edit
+        </Link>
+        <button type="button" onClick={() => setConfirmingDelete(true)} className={ui.btnDangerGhost}>
+          Delete
+        </button>
       </div>
 
       {attachments.isSuccess && (
@@ -198,19 +183,36 @@ export function TaskDetailPage() {
         />
       )}
 
-      <CommentThread
-        target={{ taskId: t.id }}
-        canComment={me ? canComment(me, { kind: 'task', assignedTo: t.assignedTo, createdBy: t.createdBy }) : false}
-      />
+      {findings.isError && <ErrorState error={findings.error} />}
+      {linkedFindings.length > 0 && (
+        <section aria-labelledby="task-findings-heading" className="space-y-2">
+          <h2 id="task-findings-heading" className={ui.sectionTitle}>
+            Findings from this task
+          </h2>
+          <ul className={`${ui.card} divide-y divide-line`}>
+            {linkedFindings.map((finding) => (
+              <li key={finding.id} className="flex items-center justify-between gap-3 px-4 py-2.5">
+                <Link to={`/findings/${finding.id}`} className="min-w-0 truncate text-sm font-medium text-fg hover:underline">
+                  {finding.title}
+                </Link>
+                <StatusBadge status={finding.status} />
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
-      <RequestChangesDialog
-        open={requestingChanges}
-        itemTitle={t.title}
-        onCancel={() => setRequestingChanges(false)}
-        onSubmit={async (body) => {
-          await requestChanges.mutateAsync({ id: t.id, body })
-          setRequestingChanges(false)
-        }}
+      <Timeline key={t.id} target={{ taskId: t.id }} deleted={t.deletedAt !== null} />
+
+      <ConfirmDialog
+        open={confirmingDelete}
+        title="Move to Trash?"
+        body={`“${t.title}” will be hidden for everyone. You can restore it from Trash.`}
+        confirmLabel="Move to Trash"
+        tone="primary"
+        busy={deleteTask.isPending}
+        onCancel={() => setConfirmingDelete(false)}
+        onConfirm={moveToTrash}
       />
     </article>
   )

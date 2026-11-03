@@ -31,27 +31,35 @@ export const ui = {
   tag: 'inline-flex items-center rounded-md bg-surface-2 px-1.5 py-0.5 text-xs font-medium text-fg-muted',
 } as const
 
-/** Colored left edge for an item. The color says whose turn it is (review-flow spec §3). */
+/** Colored left edge for an item. The color says whose turn it is (spec §9). */
 export const edge = {
-  neutral: 'border-l-[3px] border-l-line-strong', // to do: not started
-  waiting: 'border-l-[3px] border-l-open-edge', // amber: waiting for the lead
-  review: 'border-l-[3px] border-l-review-edge', // violet: changes requested, assignee's turn
-  fixed: 'border-l-[3px] border-l-fixed-edge', // sky: resubmitted, back with the lead
-  done: 'border-l-[3px] border-l-done-edge', // green: approved
-  overdue: 'border-l-[3px] border-l-overdue-edge', // red: to do past its deadline
+  neutral: 'border-l-[3px] border-l-line-strong', // slate: to do / in progress, nobody waiting on it
+  waiting: 'border-l-[3px] border-l-open-edge', // amber: open finding, or task waiting for review
+  review: 'border-l-[3px] border-l-review-edge', // violet: needs more info
+  fixed: 'border-l-[3px] border-l-fixed-edge', // sky: fixed, waiting for a re-check
+  done: 'border-l-[3px] border-l-done-edge', // green: verified / done
+  overdue: 'border-l-[3px] border-l-overdue-edge', // red: blocked, or past its deadline
+  muted: 'border-l-[3px] border-l-fg-subtle', // grey: not a bug
 } as const
 
 export function statusEdge(status: FindingStatus | TaskStatus, overdue = false): string {
   switch (status) {
-    case 'submitted':
+    case 'open':
+    case 'waiting_for_review':
       return edge.waiting
-    case 'changes_requested':
+    case 'needs_info':
       return edge.review
-    case 'resubmitted':
+    case 'fixed':
       return edge.fixed
-    case 'approved':
+    case 'verified':
+    case 'done':
       return edge.done
+    case 'blocked':
+      return edge.overdue
+    case 'not_a_bug':
+      return edge.muted
     case 'todo':
+    case 'in_progress':
       return overdue ? edge.overdue : edge.neutral
   }
 }
