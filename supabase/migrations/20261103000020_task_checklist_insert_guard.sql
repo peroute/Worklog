@@ -1,5 +1,5 @@
 -- Task checklist: the tick rule also applies when an item is created.
--- 20261102000050 only guarded updates, so a creator could insert an item with done = true
+-- 20261103000010_task_checklist only guarded updates, so a creator could insert an item with done = true
 -- and it would show as ticked by them. Ticking is the assignee's job (or the lead's).
 -- Covered by supabase/tests/task_checklist.test.sql.
 
