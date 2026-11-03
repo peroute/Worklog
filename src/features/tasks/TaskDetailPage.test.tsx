@@ -18,6 +18,7 @@ vi.mock('../../data/tasks', () => import('../../test/mockData').then((m) => m.ta
 vi.mock('../../data/comments', () => import('../../test/mockData').then((m) => m.commentsModule))
 vi.mock('../../data/findings', () => import('../../test/mockData').then((m) => m.findingsModule))
 vi.mock('../../data/taskAttachments', () => import('../../test/mockData').then((m) => m.taskAttachmentsModule))
+vi.mock('../../data/checklist', () => import('../../test/mockData').then((m) => m.checklistModule))
 
 const task = (status: TaskStatus) =>
   makeTask({

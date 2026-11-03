@@ -63,3 +63,12 @@ export const imagesModule = {
   signImagePaths: vi.fn(),
   getFindingImagesFor: vi.fn(async () => ({})),
 }
+
+export const checklistModule = {
+  listChecklist: vi.fn(async () => []),
+  addChecklistItems: vi.fn(async () => []),
+  renameChecklistItem: vi.fn(),
+  setChecklistItemDone: vi.fn(),
+  setChecklistPositions: vi.fn(async () => undefined),
+  removeChecklistItems: vi.fn(async () => undefined),
+}

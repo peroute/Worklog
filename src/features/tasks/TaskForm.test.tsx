@@ -6,7 +6,8 @@ import { getProject, listProjects } from '../../data/projects'
 import { deleteTaskAttachment, listTaskAttachments, uploadTaskAttachments } from '../../data/taskAttachments'
 import { createTask, getTask, listTasks, updateTask } from '../../data/tasks'
 import { listFindings } from '../../data/findings'
-import { hedi, khaushik, lead, makeAttachment, makeTask } from '../../test/factories'
+import { addChecklistItems, listChecklist, removeChecklistItems, setChecklistPositions } from '../../data/checklist'
+import { hedi, khaushik, lead, makeAttachment, makeChecklistItem, makeTask } from '../../test/factories'
 import { auth } from '../../test/mockAuth'
 import { renderApp } from '../../test/renderApp'
 
@@ -16,6 +17,7 @@ vi.mock('../../data/projects', () => import('../../test/mockData').then((m) => m
 vi.mock('../../data/tasks', () => import('../../test/mockData').then((m) => m.tasksModule))
 vi.mock('../../data/findings', () => import('../../test/mockData').then((m) => m.findingsModule))
 vi.mock('../../data/taskAttachments', () => import('../../test/mockData').then((m) => m.taskAttachmentsModule))
+vi.mock('../../data/checklist', () => import('../../test/mockData').then((m) => m.checklistModule))
 // Real compression needs a canvas; pretend every screenshot comes out as a small WebP.
 // Pin "today" so the default start day is predictable.
 vi.mock('../../lib/dates', async (importOriginal) => ({
@@ -183,6 +185,71 @@ describe('TaskForm', () => {
     expect(screen.getByText(/proof\.pdf/)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Remove saved proof.pdf' })).not.toBeInTheDocument()
   })
+
+  it('saves checklist items after creating the task', async () => {
+    vi.mocked(createTask).mockResolvedValue(makeTask({ id: 'new-task', projectId: 'p1' }))
+    renderApp('/tasks/new?projectId=p1')
+    await fillRequired()
+    const add = screen.getByPlaceholderText('Add an item…')
+    await userEvent.type(add, 'Reproduce{enter}')
+    await userEvent.type(add, 'Fix{enter}')
+    await userEvent.click(screen.getByRole('button', { name: 'Save task' }))
+    await vi.waitFor(() =>
+      expect(addChecklistItems).toHaveBeenCalledWith('new-task', [
+        { title: 'Reproduce', position: 0 },
+        { title: 'Fix', position: 1 },
+      ]),
+    )
+  })
+
+  it('deletes checklist items removed while editing', async () => {
+    const task = makeTask({ id: 't1', projectId: 'p1', createdBy: lead.id, assignedTo: khaushik.id })
+    vi.mocked(listTasks).mockResolvedValue([task])
+    vi.mocked(listTaskAttachments).mockResolvedValue([])
+    vi.mocked(listChecklist).mockResolvedValue([
+      makeChecklistItem({ id: 'a', taskId: 't1', title: 'Reproduce', position: 0 }),
+      makeChecklistItem({ id: 'b', taskId: 't1', title: 'Fix', position: 1 }),
+    ])
+    vi.mocked(updateTask).mockResolvedValue(task)
+    renderApp('/tasks/t1/edit')
+    await userEvent.click(await screen.findByRole('button', { name: 'Remove Reproduce' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Save task' }))
+    await vi.waitFor(() => expect(removeChecklistItems).toHaveBeenCalledWith(['a']))
+  })
+
+  it('still saves new items when one was deleted in another tab meanwhile', async () => {
+    const task = makeTask({ id: 't1', projectId: 'p1', createdBy: lead.id, assignedTo: khaushik.id })
+    const a = makeChecklistItem({ id: 'a', taskId: 't1', title: 'Reproduce', position: 0 })
+    const x = makeChecklistItem({ id: 'x', taskId: 't1', title: 'Old step', position: 1 })
+    const b = makeChecklistItem({ id: 'b', taskId: 't1', title: 'Fix', position: 2 })
+    vi.mocked(listTasks).mockResolvedValue([task])
+    vi.mocked(listTaskAttachments).mockResolvedValue([])
+    vi.mocked(listChecklist)
+      .mockResolvedValueOnce([a, x, b]) // when the form opens
+      .mockResolvedValue([a, b]) // at save: x was deleted in another tab
+    // Like the database: updating a row that no longer exists fails.
+    vi.mocked(setChecklistPositions).mockImplementation(async (items) => {
+      if (items.some((i) => i.id === 'x')) throw new Error('Cannot coerce the result to a single JSON object')
+    })
+    vi.mocked(updateTask).mockResolvedValue(task)
+    vi.mocked(addChecklistItems).mockClear()
+    renderApp('/tasks/t1/edit')
+    await userEvent.click(await screen.findByRole('button', { name: 'Remove Reproduce' }))
+    await userEvent.type(screen.getByPlaceholderText('Add an item…'), 'Write tests{enter}')
+    await userEvent.click(screen.getByRole('button', { name: 'Save task' }))
+    await vi.waitFor(() => expect(addChecklistItems).toHaveBeenCalledWith('t1', [{ title: 'Write tests', position: 2 }]))
+  })
+
+  it('saves an item typed in the add box even without pressing Enter', async () => {
+    vi.mocked(createTask).mockResolvedValue(makeTask({ id: 'new-task', projectId: 'p1' }))
+    vi.mocked(addChecklistItems).mockClear()
+    renderApp('/tasks/new?projectId=p1')
+    await fillRequired()
+    await userEvent.type(screen.getByPlaceholderText('Add an item…'), 'Last step')
+    await userEvent.click(screen.getByRole('button', { name: 'Save task' }))
+    await vi.waitFor(() => expect(addChecklistItems).toHaveBeenCalledWith('new-task', [{ title: 'Last step', position: 0 }]))
+  })
+
   it('starts the task on the day passed from Today', async () => {
     vi.mocked(createTask).mockResolvedValue(makeTask())
     renderApp('/tasks/new?start=2026-11-09')

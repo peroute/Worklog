@@ -1,5 +1,5 @@
 // Test data builders: each test overrides only the fields it cares about.
-import type { Finding, Profile, Task, TaskAttachment } from '../data/types'
+import type { ChecklistItem, Finding, Profile, Task, TaskAttachment } from '../data/types'
 
 export const lead: Profile = { id: 'lead-id', displayName: 'Lead', role: 'lead' }
 export const hedi: Profile = { id: 'hedi-id', displayName: 'Hedi', role: 'member' }
@@ -22,6 +22,22 @@ export function makeTask(overrides: Partial<Task> = {}): Task {
     submissionNote: null,
     createdBy: lead.id,
     createdAt: '2026-10-20T15:00:00Z',
+    checklistTotal: 0,
+    checklistDone: 0,
+    ...overrides,
+  }
+}
+
+export function makeChecklistItem(overrides: Partial<ChecklistItem> = {}): ChecklistItem {
+  return {
+    id: nextId('item'),
+    taskId: 'task-1',
+    title: 'A step',
+    position: 0,
+    done: false,
+    doneBy: null,
+    doneAt: null,
+    createdAt: '2026-11-02T15:00:00Z',
     ...overrides,
   }
 }

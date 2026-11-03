@@ -67,6 +67,22 @@ export interface Task {
   submissionNote: string | null
   createdBy: string
   createdAt: string
+  /** Checklist progress, for list rows. 0 / 0 = no checklist. */
+  checklistTotal: number
+  checklistDone: number
+}
+
+/** One step in a task's checklist. The creator/lead writes it; the assignee ticks it. */
+export interface ChecklistItem {
+  id: string
+  taskId: string
+  title: string
+  position: number
+  done: boolean
+  /** Who ticked it and when — set by the database, never the client. */
+  doneBy: string | null
+  doneAt: string | null
+  createdAt: string
 }
 
 export interface NewTask {

@@ -4,10 +4,13 @@ import { taskPatchToRow, toTask, type TaskRow } from './mappers'
 import { listTaskAttachmentPaths, removeTaskAttachmentFiles } from './taskAttachments'
 import type { NewTask, Task, TaskStatus } from './types'
 
+/** Every task read embeds its checklist's done flags, so rows can show "2/5" without another request. */
+const TASK_COLUMNS = '*, checklist:task_checklist_items(done)'
+
 export async function listTasks(
   filter: { projectId?: string; assignedTo?: string; status?: TaskStatus } = {},
 ): Promise<Task[]> {
-  let query = supabase.from('tasks').select('*')
+  let query = supabase.from('tasks').select(TASK_COLUMNS)
   if (filter.projectId) query = query.eq('project_id', filter.projectId)
   if (filter.assignedTo) query = query.eq('assigned_to', filter.assignedTo)
   if (filter.status) query = query.eq('status', filter.status)
@@ -20,25 +23,25 @@ export async function listTasks(
 }
 
 export async function getTask(id: string): Promise<Task> {
-  const { data, error } = await supabase.from('tasks').select('*').eq('id', id).single()
+  const { data, error } = await supabase.from('tasks').select(TASK_COLUMNS).eq('id', id).single()
   if (error) throw toDataError(error, { notFound: 'Task not found' })
   return toTask(data as TaskRow)
 }
 
 export async function createTask(input: NewTask): Promise<Task> {
-  const { data, error } = await supabase.from('tasks').insert(taskPatchToRow(input)).select('*').single()
+  const { data, error } = await supabase.from('tasks').insert(taskPatchToRow(input)).select(TASK_COLUMNS).single()
   if (error) throw toDataError(error)
   return toTask(data as TaskRow)
 }
 
 export async function updateTask(id: string, patch: Partial<NewTask>): Promise<Task> {
-  const { data, error } = await supabase.from('tasks').update(taskPatchToRow(patch)).eq('id', id).select('*').single()
+  const { data, error } = await supabase.from('tasks').update(taskPatchToRow(patch)).eq('id', id).select(TASK_COLUMNS).single()
   if (error) throw toDataError(error, { notFound: 'Task not found' })
   return toTask(data as TaskRow)
 }
 
 export async function setTaskStatus(id: string, status: TaskStatus): Promise<Task> {
-  const { data, error } = await supabase.from('tasks').update({ status }).eq('id', id).select('*').single()
+  const { data, error } = await supabase.from('tasks').update({ status }).eq('id', id).select(TASK_COLUMNS).single()
   if (error) throw toDataError(error, { notFound: 'Task not found' })
   return toTask(data as TaskRow)
 }
@@ -55,7 +58,7 @@ export async function submitTask(
   const patch: Record<string, unknown> = {}
   if (note !== undefined) patch.submission_note = note
   if (status) patch.status = status
-  const { data, error } = await supabase.from('tasks').update(patch).eq('id', id).select('*').single()
+  const { data, error } = await supabase.from('tasks').update(patch).eq('id', id).select(TASK_COLUMNS).single()
   if (error) throw toDataError(error, { notFound: 'Task not found' })
   return toTask(data as TaskRow)
 }
