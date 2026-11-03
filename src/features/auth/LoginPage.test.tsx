@@ -39,7 +39,7 @@ describe('LoginPage', () => {
     expect(await screen.findByRole('heading', { name: 'Projects' })).toBeInTheDocument()
   })
 
-  it('offers no way to sign up (accounts are created by the lead)', async () => {
+  it('offers no way to sign up (accounts are created by an admin)', async () => {
     renderApp('/login')
     await screen.findByRole('button', { name: 'Sign in' })
     expect(screen.queryByText(/sign up/i)).not.toBeInTheDocument()
