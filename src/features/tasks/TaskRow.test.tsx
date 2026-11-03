@@ -1,18 +1,27 @@
-import { screen } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { setTaskStatus } from '../../data/tasks'
 import { listChecklist } from '../../data/checklist'
+import { listProfiles } from '../../data/profiles'
+import { listUnseen } from '../../data/reads'
+import { deleteTask, setTaskStatus } from '../../data/tasks'
 import { hedi, khaushik, lead, makeChecklistItem, makeTask } from '../../test/factories'
 import { renderWithProviders } from '../../test/renderApp'
 import { TaskRow } from './TaskRow'
 
 vi.mock('../../data/tasks', () => import('../../test/mockData').then((m) => m.tasksModule))
 vi.mock('../../data/checklist', () => import('../../test/mockData').then((m) => m.checklistModule))
+vi.mock('../../data/profiles', () => import('../../test/mockData').then((m) => m.profilesModule))
+vi.mock('../../data/reads', () => import('../../test/mockData').then((m) => m.readsModule))
 vi.mock('../../lib/dates', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../lib/dates')>()),
   todayInTeamTz: () => '2026-10-29',
 }))
+
+beforeEach(() => {
+  vi.mocked(listProfiles).mockResolvedValue([hedi, khaushik, lead])
+  vi.mocked(listUnseen).mockResolvedValue([])
+})
 
 describe('TaskRow', () => {
   it('flags an open task past its deadline as overdue', () => {
@@ -25,28 +34,29 @@ describe('TaskRow', () => {
     expect(screen.queryByText('Overdue')).not.toBeInTheDocument()
   })
 
-  it("disables the done checkbox on someone else's task", () => {
-    const task = makeTask({ title: 'Theirs', assignedTo: khaushik.id, createdBy: lead.id })
-    renderWithProviders(<TaskRow task={task} assigneeName="Khaushik" me={hedi} />)
-    expect(screen.getByRole('checkbox', { name: 'Mark “Theirs” done' })).toBeDisabled()
+  it('does not flag a finished task as overdue', () => {
+    renderWithProviders(<TaskRow task={makeTask({ deadline: '2026-10-28', status: 'done' })} me={hedi} />)
+    expect(screen.queryByText('Overdue')).not.toBeInTheDocument()
   })
 
-  it('marks your own task done', async () => {
-    const task = makeTask({ id: 't1', title: 'Mine', assignedTo: hedi.id, createdBy: lead.id })
-    vi.mocked(setTaskStatus).mockResolvedValue({ ...task, status: 'submitted' })
-    renderWithProviders(<TaskRow task={task} assigneeName="Hedi" me={hedi} />)
-    await userEvent.click(screen.getByRole('checkbox', { name: 'Mark “Mine” done' }))
-    expect(setTaskStatus).toHaveBeenCalledWith('t1', 'submitted')
-  })
-
-  it('shows edit/delete only to the creator or lead', () => {
-    const task = makeTask({ createdBy: lead.id, assignedTo: hedi.id })
-    const { unmount } = renderWithProviders(<TaskRow task={task} assigneeName="Hedi" me={hedi} />)
-    expect(screen.queryByRole('link', { name: 'Edit' })).not.toBeInTheDocument()
-    unmount()
-    renderWithProviders(<TaskRow task={task} assigneeName="Hedi" me={lead} />)
+  it('anyone sees Edit/Delete', () => {
+    // Khaushik neither created nor owns this task, and it is already done: still editable.
+    const task = makeTask({ createdBy: lead.id, assignedTo: hedi.id, status: 'done' })
+    renderWithProviders(<TaskRow task={task} assigneeName="Hedi" me={khaushik} />)
     expect(screen.getByRole('link', { name: 'Edit' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Delete' })).toBeInTheDocument()
+  })
+
+  it('says delete moves the task to Trash, then deletes', async () => {
+    const task = makeTask({ id: 't1', title: 'Old plan' })
+    vi.mocked(deleteTask).mockResolvedValue(undefined)
+    renderWithProviders(<TaskRow task={task} me={khaushik} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Delete' }))
+    const dialog = await screen.findByRole('dialog')
+    expect(dialog).toHaveTextContent(/Trash/)
+    expect(deleteTask).not.toHaveBeenCalled()
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Delete task' }))
+    expect(deleteTask).toHaveBeenCalledWith('t1')
   })
 
   it('expands to show the explanation with line breaks', async () => {
@@ -57,27 +67,12 @@ describe('TaskRow', () => {
     expect(text.querySelector('br')).not.toBeNull()
     expect(text.textContent).toMatch(/Step 1\s*Step 2/)
   })
-})
 
-describe('TaskRow with the review flow', () => {
   it('links the title to the task page', () => {
     renderWithProviders(<TaskRow task={makeTask({ id: 't9', title: 'Retest' })} me={hedi} />)
     expect(screen.getByRole('link', { name: 'Retest' })).toHaveAttribute('href', '/tasks/t9')
   })
 
-  it('shows a sent-back task with its badge instead of a checkbox', () => {
-    renderWithProviders(<TaskRow task={makeTask({ title: 'Fix me', status: 'changes_requested' })} me={hedi} />)
-    expect(screen.getByText('Changes requested')).toBeInTheDocument()
-    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
-  })
-
-  it('lets the assignee untick a done task until the lead reviews it', async () => {
-    const task = makeTask({ id: 't2', title: 'Waiting', assignedTo: hedi.id, status: 'submitted' })
-    vi.mocked(setTaskStatus).mockResolvedValue({ ...task, status: 'todo' })
-    renderWithProviders(<TaskRow task={task} me={hedi} />)
-    await userEvent.click(screen.getByRole('checkbox', { name: 'Mark “Waiting” done' }))
-    expect(setTaskStatus).toHaveBeenCalledWith('t2', 'todo')
-  })
   it('labels a task that has not started yet with its start day', () => {
     renderWithProviders(<TaskRow task={makeTask({ startDate: '2026-11-03' })} me={hedi} />)
     expect(screen.getByText('Starts Tue, Nov 3')).toBeInTheDocument()
@@ -93,9 +88,78 @@ describe('TaskRow with the review flow', () => {
     expect(screen.getByText('From Lead')).toBeInTheDocument()
   })
 
-  describe('checklist', () => {
-    beforeEach(() => vi.clearAllMocks())
+  describe('NEW dot', () => {
+    it('shows for a task in the unseen list', async () => {
+      vi.mocked(listUnseen).mockResolvedValue([{ type: 'task', id: 't1' }])
+      renderWithProviders(<TaskRow task={makeTask({ id: 't1' })} me={hedi} />)
+      expect(await screen.findByLabelText('New')).toBeInTheDocument()
+    })
 
+    it('NEW dot for unseen task: not for a seen one, nor for a finding with the same id', async () => {
+      vi.mocked(listUnseen).mockResolvedValue([{ type: 'finding', id: 't1' }])
+      renderWithProviders(<TaskRow task={makeTask({ id: 't1' })} me={hedi} />)
+      await waitFor(() => expect(listUnseen).toHaveBeenCalled())
+      expect(screen.queryByLabelText('New')).not.toBeInTheDocument()
+    })
+  })
+
+  describe('status buttons', () => {
+    it("shows the buttons when it is the person's turn", async () => {
+      renderWithProviders(<TaskRow task={makeTask({ assignedTo: hedi.id })} me={hedi} />)
+      expect(await screen.findByRole('button', { name: 'Start' })).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'More' })).not.toBeInTheDocument()
+    })
+
+    it("tucks them under More when it is someone else's turn", async () => {
+      renderWithProviders(<TaskRow task={makeTask({ assignedTo: hedi.id })} me={khaushik} />)
+      expect(await screen.findByRole('button', { name: 'More' })).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Start' })).not.toBeInTheDocument()
+    })
+
+    it('starts the task', async () => {
+      const task = makeTask({ id: 't1', assignedTo: hedi.id })
+      vi.mocked(setTaskStatus).mockResolvedValue()
+      renderWithProviders(<TaskRow task={task} me={hedi} />)
+      await userEvent.click(await screen.findByRole('button', { name: 'Start' }))
+      expect(setTaskStatus).toHaveBeenCalledWith('t1', 'in_progress', {})
+    })
+
+    it('asks for a reason before blocking', async () => {
+      const task = makeTask({ id: 't1', assignedTo: hedi.id })
+      vi.mocked(setTaskStatus).mockResolvedValue()
+      renderWithProviders(<TaskRow task={task} me={hedi} />)
+      await userEvent.click(await screen.findByRole('button', { name: 'Blocked…' }))
+      expect(setTaskStatus).not.toHaveBeenCalled()
+
+      const dialog = await screen.findByRole('dialog')
+      await userEvent.type(within(dialog).getByLabelText("What's blocking it?"), 'Waiting on a test device')
+      await userEvent.click(within(dialog).getByRole('button', { name: 'Blocked…' }))
+      expect(setTaskStatus).toHaveBeenCalledWith('t1', 'blocked', { reason: 'Waiting on a test device' })
+    })
+
+    it('finishing a task that needs review sends it to review', async () => {
+      const task = makeTask({ id: 't1', assignedTo: hedi.id, needsReview: true, status: 'in_progress' })
+      vi.mocked(setTaskStatus).mockResolvedValue()
+      renderWithProviders(<TaskRow task={task} me={hedi} />)
+      await userEvent.click(await screen.findByRole('button', { name: 'Mark done' }))
+      expect(setTaskStatus).toHaveBeenCalledWith('t1', 'waiting_for_review', {})
+    })
+
+    it('shows the status badge once it is past To do', () => {
+      renderWithProviders(<TaskRow task={makeTask({ status: 'waiting_for_review' })} me={hedi} />)
+      expect(screen.getByText('Waiting for review')).toBeInTheDocument()
+    })
+
+    it('shows the refusal when the database says no', async () => {
+      const task = makeTask({ id: 't1', assignedTo: hedi.id })
+      vi.mocked(setTaskStatus).mockRejectedValue(new Error('someone already moved it'))
+      renderWithProviders(<TaskRow task={task} me={hedi} />)
+      await userEvent.click(await screen.findByRole('button', { name: 'Start' }))
+      expect(await screen.findByText(/someone already moved it/)).toBeInTheDocument()
+    })
+  })
+
+  describe('checklist', () => {
     it('shows progress as a chip', () => {
       renderWithProviders(<TaskRow task={makeTask({ checklistTotal: 5, checklistDone: 2 })} assigneeName="Hedi" me={hedi} />)
       expect(screen.getByTitle('2 of 5 checklist items done')).toHaveTextContent('2/5')
@@ -111,30 +175,30 @@ describe('TaskRow with the review flow', () => {
       expect(screen.getByTitle('3 of 3 checklist items done')).toHaveClass('text-done')
     })
 
-    it('asks before submitting with unticked items, listing them', async () => {
-      const task = makeTask({ id: 't1', title: 'Mine', assignedTo: hedi.id, createdBy: lead.id, checklistTotal: 2, checklistDone: 1 })
+    it('asks before finishing with unticked items, listing them', async () => {
+      const task = makeTask({ id: 't1', assignedTo: hedi.id, checklistTotal: 2, checklistDone: 1 })
       vi.mocked(listChecklist).mockResolvedValue([
         makeChecklistItem({ taskId: 't1', title: 'Reproduce', done: true }),
         makeChecklistItem({ taskId: 't1', title: 'Test on Android 14' }),
       ])
-      vi.mocked(setTaskStatus).mockResolvedValue({ ...task, status: 'submitted' })
+      vi.mocked(setTaskStatus).mockResolvedValue()
       renderWithProviders(<TaskRow task={task} assigneeName="Hedi" me={hedi} />)
 
-      await userEvent.click(screen.getByRole('checkbox', { name: 'Mark “Mine” done' }))
+      await userEvent.click(await screen.findByRole('button', { name: 'Mark done' }))
       expect(await screen.findByText("1 of 2 checklist items aren't ticked")).toBeInTheDocument()
       expect(await screen.findByText('Test on Android 14')).toBeInTheDocument()
       expect(setTaskStatus).not.toHaveBeenCalled()
 
-      await userEvent.click(screen.getByRole('button', { name: 'Submit anyway' }))
-      expect(setTaskStatus).toHaveBeenCalledWith('t1', 'submitted')
+      await userEvent.click(screen.getByRole('button', { name: 'Finish anyway' }))
+      expect(setTaskStatus).toHaveBeenCalledWith('t1', 'done', {})
     })
 
-    it('submits straight away when everything is ticked', async () => {
-      const task = makeTask({ id: 't1', title: 'Mine', assignedTo: hedi.id, createdBy: lead.id, checklistTotal: 2, checklistDone: 2 })
-      vi.mocked(setTaskStatus).mockResolvedValue({ ...task, status: 'submitted' })
+    it('finishes straight away when everything is ticked', async () => {
+      const task = makeTask({ id: 't1', assignedTo: hedi.id, checklistTotal: 2, checklistDone: 2 })
+      vi.mocked(setTaskStatus).mockResolvedValue()
       renderWithProviders(<TaskRow task={task} assigneeName="Hedi" me={hedi} />)
-      await userEvent.click(screen.getByRole('checkbox', { name: 'Mark “Mine” done' }))
-      expect(setTaskStatus).toHaveBeenCalledWith('t1', 'submitted')
+      await userEvent.click(await screen.findByRole('button', { name: 'Mark done' }))
+      expect(setTaskStatus).toHaveBeenCalledWith('t1', 'done', {})
     })
   })
 })

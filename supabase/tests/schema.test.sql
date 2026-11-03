@@ -2,7 +2,7 @@
 -- Everything runs inside a transaction that is rolled back, so no data is left behind.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(18);
+select plan(17);
 
 -- 1-5: all tables exist
 select has_table('public', 'profiles', 'profiles table exists');
@@ -11,7 +11,7 @@ select has_table('public', 'tasks', 'tasks table exists');
 select has_table('public', 'findings', 'findings table exists');
 select has_table('public', 'finding_images', 'finding_images table exists');
 
--- 6-7: creating an auth user creates a matching profile (handle_new_user trigger)
+-- 6: creating an auth user creates a matching profile (handle_new_user trigger)
 insert into auth.users (id, email, raw_user_meta_data)
 values ('11111111-1111-1111-1111-111111111111', 'hedi@pgtap.local', '{"display_name":"Hedi"}');
 
@@ -19,11 +19,6 @@ select is(
   (select display_name from public.profiles where id = '11111111-1111-1111-1111-111111111111'),
   'Hedi',
   'new auth user gets a profile with display_name from metadata'
-);
-select is(
-  (select role from public.profiles where id = '11111111-1111-1111-1111-111111111111'),
-  'member',
-  'new profiles default to the member role'
 );
 
 -- Fixtures: one project, one task, one finding linked to that task
@@ -40,7 +35,7 @@ values ('44444444-4444-4444-4444-444444444444', '22222222-2222-2222-2222-2222222
         '11111111-1111-1111-1111-111111111111');
 
 -- 8-9: done_at follows status (set_done_at trigger)
-update public.tasks set status = 'submitted' where id = '33333333-3333-3333-3333-333333333333';
+update public.tasks set status = 'waiting_for_review' where id = '33333333-3333-3333-3333-333333333333';
 select isnt(
   (select done_at from public.tasks where id = '33333333-3333-3333-3333-333333333333'),
   null,
@@ -100,7 +95,7 @@ select lives_ok(
   'a task can be created with no project'
 );
 
--- 16-18: status vocabulary (20261102000010_status_rename.sql). Old names are gone for good.
+-- 16-17: status vocabulary (20261103000100_flat_team_reset.sql). Retired names are gone for good.
 insert into public.projects (id, name, created_by)
 values ('44444444-4444-4444-4444-444444444444', 'pgtap: statuses', '11111111-1111-1111-1111-111111111111');
 insert into public.findings (id, project_id, title, explanation, author_id)
@@ -108,14 +103,14 @@ values ('55555555-5555-5555-5555-555555555555', '44444444-4444-4444-4444-4444444
         '11111111-1111-1111-1111-111111111111');
 select is(
   (select status from public.findings where id = '55555555-5555-5555-5555-555555555555'),
-  'submitted',
-  'a new finding starts as submitted'
+  'open',
+  'a new finding starts as open'
 );
 select throws_ok(
-  $$ update public.findings set status = 'open' where id = '55555555-5555-5555-5555-555555555555' $$,
+  $$ update public.findings set status = 'submitted' where id = '55555555-5555-5555-5555-555555555555' $$,
   '23514',
   null,
-  'the old finding status "open" is rejected'
+  'the retired finding status "submitted" is rejected'
 );
 select throws_ok(
   $$ insert into public.tasks (project_id, title, assigned_to, created_by, status)

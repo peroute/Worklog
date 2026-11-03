@@ -1,17 +1,26 @@
 import { supabase } from '../lib/supabase'
-import { DataError, toDataError } from './errors'
-import { listImagePaths, removeStoredFiles, signImagePaths, uploadFindingImages } from './images'
+import { toDataError } from './errors'
+import { signImagePaths, uploadFindingImages } from './images'
 import { findingPatchToRow, toFinding, toFindingImage, type FindingImageRow, type FindingRow } from './mappers'
+import { restore, softDelete } from './softDelete'
 import type { Finding, FindingDetail, FindingStatus, NewFinding } from './types'
 
-// Every finding query also asks for its screenshot count.
+// Every finding query also asks for its (live) screenshot count.
 const FINDING_COLUMNS = '*, finding_images(count)'
 
 export async function listFindings(
-  filter: { projectId?: string; authorId?: string; status?: FindingStatus; date?: string } = {},
+  filter: {
+    projectId?: string
+    taskId?: string
+    authorId?: string
+    status?: FindingStatus
+    date?: string
+  } = {},
 ): Promise<Finding[]> {
-  let query = supabase.from('findings').select(FINDING_COLUMNS)
+  // live_findings hides deleted findings and those of deleted projects.
+  let query = supabase.from('live_findings').select(FINDING_COLUMNS).is('finding_images.deleted_at', null)
   if (filter.projectId) query = query.eq('project_id', filter.projectId)
+  if (filter.taskId) query = query.eq('task_id', filter.taskId)
   if (filter.authorId) query = query.eq('author_id', filter.authorId)
   if (filter.status) query = query.eq('status', filter.status)
   if (filter.date) query = query.eq('finding_date', filter.date)
@@ -24,9 +33,10 @@ export async function listFindings(
 
 export async function getFinding(id: string): Promise<FindingDetail> {
   const { data, error } = await supabase
-    .from('findings')
-    .select('*, images:finding_images(id, finding_id, storage_path, position)')
+    .from('live_findings')
+    .select('*, images:finding_images(id, finding_id, storage_path, position, deleted_at, deleted_by)')
     .eq('id', id)
+    .is('images.deleted_at', null)
     .order('position', { referencedTable: 'images' })
     .single()
   if (error) throw toDataError(error, { notFound: 'Finding not found' })
@@ -58,33 +68,22 @@ export async function updateFinding(id: string, patch: Partial<NewFinding>): Pro
     .update(findingPatchToRow(patch))
     .eq('id', id)
     .select(FINDING_COLUMNS)
+    .is('finding_images.deleted_at', null)
     .single()
   if (error) throw toDataError(error, { notFound: 'Finding not found' })
   return toFinding(data as FindingRow)
 }
 
-export async function setFindingStatus(id: string, status: FindingStatus): Promise<Finding> {
-  const { data, error } = await supabase
-    .from('findings')
-    .update({ status })
-    .eq('id', id)
-    .select(FINDING_COLUMNS)
-    .single()
-  if (error) throw toDataError(error, { notFound: 'Finding not found' })
-  return toFinding(data as FindingRow)
-}
-
-/** Same order as deleteProject: paths → rows (permission check) → files. */
-export async function deleteFinding(id: string): Promise<void> {
-  const paths = await listImagePaths([id])
-  const { data, error } = await supabase.from('findings').delete().eq('id', id).select('id')
-  if (error) throw toDataError(error)
-  if (!data || data.length === 0) throw new DataError('Only the author or lead can delete this finding')
-  await removeStoredFiles(paths)
-}
-
-/** Lead only: sends a finding back to its author with a required comment (one DB transaction). */
-export async function requestChangesFinding(id: string, body: string): Promise<void> {
-  const { error } = await supabase.rpc('request_changes_finding', { p_id: id, p_body: body })
+/**
+ * The only way to change a finding's status: a database function checks the move is allowed
+ * and saves the optional comment in the same transaction (a refused move leaves no comment).
+ */
+export async function setFindingStatus(id: string, to: FindingStatus, comment?: string): Promise<void> {
+  const { error } = await supabase.rpc('set_finding_status', { p_id: id, p_to: to, p_comment: comment ?? null })
   if (error) throw toDataError(error)
 }
+
+/** Hides the finding (soft delete). Its screenshots stay in storage so a restore is lossless. */
+export const deleteFinding = (id: string): Promise<void> => softDelete('findings', id, 'Finding')
+
+export const restoreFinding = (id: string): Promise<void> => restore('findings', id, 'Finding')

@@ -11,7 +11,7 @@
 - [x] **1a** Rename statuses (labels + DB values)
 - [ ] **1b** Make the Today tiles and the Review badge use the same count
 - [ ] **1c** Tasks page: fix the default filter + keep filters in the URL
-- [ ] **1e** Add "Save & resubmit" when editing sent-back work
+- [x] **1e** Add "Save & resubmit" when editing sent-back work
 - [ ] **3a** Add search
 
 1a–1e are each under an hour. 3a is the only real feature. Do 1a first — every other item uses its vocabulary.
@@ -44,6 +44,7 @@
 Button → "Request changes"; `send_back_*()` RPCs → `request_changes_*()`; finding action `close` → `approve`. Chosen over labels-only so future code never has to translate between two vocabularies.
 
 - [ ] **1b. Today tiles disagree with the Review badge and ignore the viewed date**
+**Partial:** nav badge and the "Your turn" page now share one computation (`useInbox`); tiles are still team-wide, all-time (except Overdue/Done), not labelled as such, and not links.
 **Problem:**
 - "Waiting for lead" counts the lead's own work; the Review page/badge excludes it → lead sees tile 5, badge 3.
 - Waiting / Needs review / Overdue are all-time counts sitting under a date heading; browsing past days doesn't change them, so they look broken.
@@ -57,6 +58,7 @@ Button → "Request changes"; `send_back_*()` RPCs → `request_changes_*()`; fi
 **Fix:** derive the tile and the badge from the same function (`reviewQueues`); label all-time tiles ("Team-wide · all days"); make each tile a link to Review or a pre-filtered Tasks view.
 
 - [ ] **1c. Tasks page hides work people still have to do**
+**Partial:** default is now "Open" (everything not Done); filters still in component state, no "Assigned to me" shortcut, no deadline sort.
 **Problem:** default filter "To do" hides `needs_review` tasks — the most urgent ones for the assignee. Filters live in component state, so opening a task and pressing Back resets them. No "Assigned to me" shortcut; no deadline sort.
 
 **Where:**
@@ -72,8 +74,9 @@ Button → "Request changes"; `send_back_*()` RPCs → `request_changes_*()`; fi
 
 **Fix:** return to where the user came from (`navigate(-1)` or a `from` in location state), or open the new task's page.
 
-- [ ] **1e. Fixing sent-back work takes two separate steps**
+- [x] **1e. Fixing sent-back work takes two separate steps**
 **Problem:** sent-back item → Edit → Save → must *separately* click "Mark fixed." Forget it and the lead never sees the item again.
+**Done:** superseded — no resubmit step; Request changes returns the task to In progress
 
 **Where:**
 - `src/features/findings/FindingForm.tsx:92` — post-save navigate
@@ -88,6 +91,7 @@ Button → "Request changes"; `send_back_*()` RPCs → `request_changes_*()`; fi
 
 - [ ] **2a. Delete lives in inconsistent places**
 **Problem:** every task row (including dense Today columns) shows Edit + Delete; the task detail page has no Delete. Findings are the reverse.
+**Partial:** Delete is now on both detail pages (finding and task) but `TaskRow` still shows Delete on every row; remove it from the row to finish.
 
 **Where:**
 - `src/features/tasks/TaskRow.tsx:116` — row-level Delete
@@ -141,7 +145,8 @@ Button → "Request changes"; `send_back_*()` RPCs → `request_changes_*()`; fi
 
 **Fix:** `isToday ? 'Nothing logged yet.' : 'Nothing logged this day.'`
 
-- [ ] **2h. Disabled checkboxes look broken**
+- [x] **2h. Disabled checkboxes look broken**
+**Done:** TaskRow no longer has a checkbox; status moves are buttons from `StatusActions` (under "More" when it is not your turn).
 **Problem:** on someone else's task, a greyed checkbox reads as a broken control.
 
 **Where:** `src/features/tasks/TaskRow.tsx:57`
@@ -180,8 +185,9 @@ Lead currently does open → Approve → Back per item. Put the buttons on each 
 - [ ] **3c. Toasts after actions (with Undo)**
 Approve / send back / delete give no feedback beyond the badge changing. A toast with Undo also makes one-click delete safe.
 
-- [ ] **3d. Activity history per item**
+- [x] **3d. Activity history per item**
 Status changes leave no record of who approved what and when. Add a `status_events` table (trigger on status change) and a timeline on detail pages.
+**Done:** per-item timeline on finding and task detail pages (comments plus activity: created, status changes, edits, deleted, restored).
 
 - [ ] **3e. "Forgot password" on login**
 **Where:** `src/features/auth/LoginPage.tsx`. Supabase provides `resetPasswordForEmail` for free.

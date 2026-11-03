@@ -32,7 +32,7 @@ export function TodayPage() {
   const personName = (id: string) => day.data?.profiles.find((p) => p.id === id)?.displayName
   // Columns and person lists show only the viewed day's findings; the strip counts all of them.
   const dayFindings = (day.data?.findings ?? []).filter((f) => f.findingDate === viewedDate)
-  const columns = day.data ? todayColumns(day.data.profiles, day.data.tasks, dayFindings, viewedDate) : []
+  const columns = day.data ? todayColumns(day.data.profiles) : []
   const summary = day.data ? daySummary(day.data.tasks, day.data.findings, viewedDate) : null
 
   return (
@@ -96,9 +96,9 @@ export function TodayPage() {
           {/* Team totals for the morning scan. Colors match the item edges below. */}
           <section aria-label="Day summary" className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-4">
             {[
-              // Same colors as the badges and edges: amber = lead's turn, violet = assignee's turn.
-              { label: 'Waiting for lead', value: summary.waitingForLead, color: 'text-open', bar: 'bg-open-edge' },
-              { label: 'Changes requested', value: summary.changesRequested, color: 'text-review', bar: 'bg-review-edge' },
+              // Same colors as the status badges and edges: amber = waiting on someone, red = stuck or late, green = finished.
+              { label: 'Waiting for review', value: summary.waitingForReview, color: 'text-open', bar: 'bg-open-edge' },
+              { label: 'Blocked', value: summary.blocked, color: 'text-overdue', bar: 'bg-overdue-edge' },
               { label: 'Overdue', value: summary.overdue, color: 'text-overdue', bar: 'bg-overdue-edge' },
               { label: isToday ? 'Done today' : 'Done', value: summary.done, color: 'text-done', bar: 'bg-done-edge' },
             ].map((tile) => (

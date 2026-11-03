@@ -7,9 +7,7 @@ import { RemoveBadge } from '../../components/FileDropzone'
 import { ui } from '../../components/ui'
 import type { FindingDetail, FindingImage } from '../../data/types'
 import { notStartedBy } from '../../domain/bucketTasks'
-import { canEditContent } from '../../domain/permissions'
 import { formatDayHeading, todayInTeamTz } from '../../lib/dates'
-import { useMe } from '../auth/useMe'
 import { useProjects } from '../projects/queries'
 import { useTasks } from '../tasks/queries'
 import { compressScreenshot } from './compress'
@@ -25,12 +23,8 @@ export function FindingFormPage() {
 
 function EditFinding({ id }: { id: string }) {
   const finding = useFinding(id)
-  const { me } = useMe()
-  if (finding.isPending || !me) return <LoadingState />
+  if (finding.isPending) return <LoadingState />
   if (finding.isError) return <ErrorState error={finding.error} />
-  if (!canEditContent(me, finding.data.authorId)) {
-    return <ErrorState error={new Error('Only the author or lead can edit this finding')} />
-  }
   return <FindingForm initial={finding.data} />
 }
 

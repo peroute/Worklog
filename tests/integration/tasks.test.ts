@@ -1,7 +1,14 @@
 import { beforeAll, describe, expect, it } from 'vitest'
-import { DataError } from '../../src/data/errors'
-import { createProject } from '../../src/data/projects'
-import { createTask, deleteTask, listTasks, setTaskStatus, updateTask } from '../../src/data/tasks'
+import { createProject, deleteProject } from '../../src/data/projects'
+import {
+  createTask,
+  deleteTask,
+  getTask,
+  listTasks,
+  restoreTask,
+  setTaskStatus,
+  updateTask,
+} from '../../src/data/tasks'
 import type { Project } from '../../src/data/types'
 import { resetData, userId } from './admin'
 import { loginAs } from './session'
@@ -25,6 +32,8 @@ describe('tasks data layer', () => {
       explanation: 'Line 1\nLine 2',
       assignedTo: hediId,
       deadline: '2026-11-05',
+      startDate: null,
+      needsReview: false,
     })
     expect(task).toMatchObject({
       title: 'Retest login',
@@ -33,28 +42,56 @@ describe('tasks data layer', () => {
       deadline: '2026-11-05',
       status: 'todo',
       doneAt: null,
+      needsReview: false,
+      blockedReason: null,
+      submittedBy: null,
+      approvedBy: null,
+      deletedAt: null,
     })
   })
 
-  it('lets the assignee mark it done, stamping doneAt', async () => {
+  it('lets the assignee finish a no-review task, stamping doneAt', async () => {
     await loginAs('hedi')
     const [task] = await listTasks({ projectId: project.id, assignedTo: hediId })
-    const done = await setTaskStatus(task.id, 'submitted')
-    expect(done.status).toBe('submitted')
+    await setTaskStatus(task.id, 'done')
+    const done = await getTask(task.id)
+    expect(done.status).toBe('done')
     expect(done.doneAt).not.toBeNull()
     expect(await listTasks({ projectId: project.id, status: 'todo' })).toHaveLength(0)
   })
 
-  it('stops the assignee from editing a task someone else created', async () => {
+  it('a non-author can edit (title and note-only edits)', async () => {
     await loginAs('hedi')
     const [task] = await listTasks({ projectId: project.id })
-    await expect(updateTask(task.id, { title: 'renamed' })).rejects.toThrow('not allowed to edit this task')
+    const renamed = await updateTask(task.id, { title: 'renamed', submissionNote: 'note only' })
+    expect(renamed).toMatchObject({ title: 'renamed', submissionNote: 'note only', status: 'done' })
   })
 
-  it('stops the assignee from deleting a task someone else created', async () => {
+  it('delete hides from list, restore brings back', async () => {
     await loginAs('hedi')
     const [task] = await listTasks({ projectId: project.id })
-    await expect(deleteTask(task.id)).rejects.toBeInstanceOf(DataError)
-    expect(await listTasks({ projectId: project.id })).toHaveLength(1)
+    await deleteTask(task.id)
+    expect(await listTasks({ projectId: project.id })).toHaveLength(0)
+    await expect(getTask(task.id)).rejects.toThrow('Task not found')
+
+    await restoreTask(task.id)
+    expect((await listTasks({ projectId: project.id })).map((t) => t.id)).toEqual([task.id])
+  })
+
+  it('project delete hides its tasks', async () => {
+    await loginAs('hedi')
+    const doomed = await createProject({ name: 'Doomed tasks', description: null })
+    const task = await createTask({
+      projectId: doomed.id,
+      title: 'Child',
+      explanation: null,
+      assignedTo: hediId,
+      deadline: null,
+      startDate: null,
+      needsReview: false,
+    })
+    await deleteProject(doomed.id)
+    expect(await listTasks({ projectId: doomed.id })).toHaveLength(0)
+    await expect(getTask(task.id)).rejects.toThrow('Task not found')
   })
 })

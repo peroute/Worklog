@@ -5,7 +5,6 @@ import {
   renameChecklistItem,
   setChecklistItemDone,
 } from '../../src/data/checklist'
-import { DataError } from '../../src/data/errors'
 import { createProject } from '../../src/data/projects'
 import { createTask, getTask, listTasks } from '../../src/data/tasks'
 import type { Task } from '../../src/data/types'
@@ -21,7 +20,7 @@ describe('checklist data layer', () => {
     await loginAs('khaushik')
     hediId = await userId('hedi')
     const project = await createProject({ name: 'Checklist project', description: null })
-    task = await createTask({ projectId: project.id, title: 'Fix crash', explanation: null, assignedTo: hediId, deadline: null })
+    task = await createTask({ projectId: project.id, title: 'Fix crash', explanation: null, assignedTo: hediId, deadline: null, startDate: null, needsReview: false })
   })
 
   it('lets the creator add items, in order, with trimmed titles', async () => {
@@ -45,9 +44,10 @@ describe('checklist data layer', () => {
     expect(row).toMatchObject({ checklistTotal: 2, checklistDone: 1 })
   })
 
-  it('rejects the assignee renaming an item', async () => {
+  it('lets any teammate rename an item (everyone is equal)', async () => {
     await loginAs('hedi')
     const [first] = await listChecklist(task.id)
-    await expect(renameChecklistItem(first.id, 'Skip')).rejects.toBeInstanceOf(DataError)
+    const renamed = await renameChecklistItem(first.id, 'Reproduce on iOS')
+    expect(renamed.title).toBe('Reproduce on iOS')
   })
 })

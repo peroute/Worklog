@@ -4,7 +4,7 @@ import { ui } from '../../components/ui'
 import { signIn } from '../../data/auth'
 import { useSession } from './SessionProvider'
 
-/** Email + password only. No sign-up link: accounts are created by the lead (spec §6). */
+/** Email + password only. No sign-up link: accounts are created by an admin (spec §6). */
 export function LoginPage() {
   const userId = useSession()
   const location = useLocation()

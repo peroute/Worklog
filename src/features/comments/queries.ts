@@ -12,11 +12,11 @@ export function useAddComment(target: CommentTarget) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (body: string) => addComment(target, body),
-    // The thread, and the Review page's "latest comment" previews.
+    // The thread, and the Inbox's "latest comment" previews.
     onSuccess: () =>
       Promise.all([
         queryClient.invalidateQueries({ queryKey: key(target) }),
-        queryClient.invalidateQueries({ queryKey: ['review'] }),
+        queryClient.invalidateQueries({ queryKey: ['inbox'] }),
       ]),
   })
 }

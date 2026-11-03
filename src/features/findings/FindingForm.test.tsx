@@ -9,7 +9,9 @@ import { listTasks } from '../../data/tasks'
 import type { ProjectSummary } from '../../data/types'
 import { hedi, khaushik, lead, makeFinding, makeTask } from '../../test/factories'
 import { auth } from '../../test/mockAuth'
-import { renderApp } from '../../test/renderApp'
+import { renderPage } from '../../test/renderPage'
+import { FindingDetailPage } from './FindingDetailPage'
+import { FindingFormPage } from './FindingForm'
 import { compressScreenshot } from './compress'
 
 vi.mock('../../data/auth', () => import('../../test/mockAuth').then((m) => m.authModule))
@@ -24,15 +26,31 @@ vi.mock('../../lib/dates', async (importOriginal) => ({
   todayInTeamTz: () => '2026-10-29',
 }))
 
+vi.mock('../../data/comments', () => import('../../test/mockData').then((m) => m.commentsModule))
+vi.mock('../../data/activity', () => import('../../test/mockData').then((m) => m.activityModule))
+vi.mock('../../data/reads', () => import('../../test/mockData').then((m) => m.readsModule))
+
 const summary = (id: string, name: string): ProjectSummary => ({
   id,
   name,
   description: null,
   createdBy: lead.id,
   createdAt: '',
+  deletedAt: null,
+  deletedBy: null,
   openFindings: 0,
   openTasks: 0,
 })
+
+/** Mounts the form at `path` (new or edit), with the finding page it navigates to after saving. */
+function renderApp(path: string) {
+  const editing = path.includes('/edit')
+  return renderPage(<FindingFormPage />, {
+    path,
+    route: editing ? '/findings/:id/edit' : '/findings/new',
+    others: { '/findings/:id': <FindingDetailPage />, '/projects/:id': <h1>Project page</h1> },
+  })
+}
 
 describe('FindingForm (new finding)', () => {
   beforeEach(() => {
@@ -105,7 +123,7 @@ describe('FindingForm (new finding)', () => {
 })
 
 describe('FindingForm (edit)', () => {
-  const image = { id: 'i1', findingId: 'f1', storagePath: 'findings/f1/a.webp', position: 3, url: 'http://img/a' }
+  const image = { id: 'i1', findingId: 'f1', storagePath: 'findings/f1/a.webp', position: 3, url: 'http://img/a', deletedAt: null, deletedBy: null }
   const existing = { ...makeFinding({ id: 'f1', projectId: 'p1', title: 'Old title', authorId: hedi.id }), images: [image] }
 
   beforeEach(() => {
@@ -137,11 +155,11 @@ describe('FindingForm (edit)', () => {
     expect(uploadFindingImages).toHaveBeenCalledWith('f1', [], 4)
   })
 
-  it("refuses to open the editor for someone else's finding", async () => {
+  it("opens the editor for someone else's finding", async () => {
     auth.signedInAs(khaushik.id)
     vi.mocked(getMyProfile).mockResolvedValue(khaushik)
     renderApp('/findings/f1/edit')
-    expect(await screen.findByRole('alert')).toHaveTextContent('Only the author or lead can edit this finding')
-    expect(screen.queryByLabelText('Title')).not.toBeInTheDocument()
+    expect(await screen.findByLabelText('Title')).toHaveValue('Old title')
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 })

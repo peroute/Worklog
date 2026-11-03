@@ -1,15 +1,15 @@
 import { beforeAll, describe, expect, it } from 'vitest'
-import { DataError } from '../../src/data/errors'
 import {
   createFinding,
   deleteFinding,
   getFinding,
   listFindings,
-  setFindingStatus,
+  restoreFinding,
   updateFinding,
 } from '../../src/data/findings'
-import { getFindingImagesFor } from '../../src/data/images'
-import { createProject } from '../../src/data/projects'
+import { deleteFindingImage, getFindingImagesFor } from '../../src/data/images'
+import { createProject, deleteProject } from '../../src/data/projects'
+import { createTask } from '../../src/data/tasks'
 import type { NewFinding, Project } from '../../src/data/types'
 import { fakeImage, listFiles, resetData, userId } from './admin'
 import { loginAs } from './session'
@@ -34,7 +34,14 @@ describe('findings data layer', () => {
     await loginAs('hedi')
     const { finding, failedUploads } = await createFinding(base('Login crash'), [fakeImage(), fakeImage('image/jpeg')])
     expect(failedUploads).toBe(0)
-    expect(finding).toMatchObject({ title: 'Login crash', status: 'submitted', authorId: await userId('hedi'), imageCount: 2 })
+    expect(finding).toMatchObject({
+      title: 'Login crash',
+      status: 'open',
+      authorId: await userId('hedi'),
+      imageCount: 2,
+      fixedBy: null,
+      deletedAt: null,
+    })
 
     const detail = await getFinding(finding.id)
     expect(detail.images.map((i) => i.position)).toEqual([0, 1])
@@ -65,16 +72,12 @@ describe('findings data layer', () => {
     expect(await listFindings({ projectId: project.id, date: '2026-10-28' })).toHaveLength(0)
   })
 
-  // Review flow (2026-10-30): only the lead closes findings.
-  it("does not let a member close, edit or delete someone else's finding", async () => {
+  it('a non-author can edit', async () => {
     await loginAs('khaushik')
-    const [target] = await listFindings({ projectId: project.id, status: 'submitted' })
-    await expect(setFindingStatus(target.id, 'approved')).rejects.toThrow('not allowed to change this status')
-    await expect(updateFinding(target.id, { title: 'hijacked' })).rejects.toThrow(
-      'only the author or lead can edit this finding',
-    )
-    await expect(deleteFinding(target.id)).rejects.toBeInstanceOf(DataError)
-    expect(await listFiles(`findings/${target.id}`)).not.toHaveLength(0)
+    const [target] = await listFindings({ projectId: project.id })
+    const updated = await updateFinding(target.id, { title: 'Edited by someone else' })
+    expect(updated.title).toBe('Edited by someone else')
+    await updateFinding(target.id, { title: target.title })
   })
 
   it('loads screenshots for many findings at once, grouped and ordered', async () => {
@@ -88,12 +91,52 @@ describe('findings data layer', () => {
     expect(await getFindingImagesFor([])).toEqual({})
   })
 
-  it('deletes a finding together with its screenshot files', async () => {
+  it('delete hides from list, restore brings back (files are kept)', async () => {
     await loginAs('hedi')
     const { finding } = await createFinding(base('To delete'), [fakeImage(), fakeImage()])
-    expect(await listFiles(`findings/${finding.id}`)).toHaveLength(2)
+    await loginAs('khaushik')
     await deleteFinding(finding.id)
-    expect(await listFiles(`findings/${finding.id}`)).toHaveLength(0)
+
+    expect((await listFindings({ projectId: project.id })).some((f) => f.id === finding.id)).toBe(false)
     await expect(getFinding(finding.id)).rejects.toThrow('Finding not found')
+    expect(await listFiles(`findings/${finding.id}`)).toHaveLength(2)
+
+    await restoreFinding(finding.id)
+    expect((await listFindings({ projectId: project.id })).some((f) => f.id === finding.id)).toBe(true)
+    expect((await getFinding(finding.id)).images).toHaveLength(2)
+  })
+
+  it('removing a screenshot hides it but keeps the file', async () => {
+    await loginAs('hedi')
+    const { finding } = await createFinding(base('Image removal'), [fakeImage(), fakeImage()])
+    const detail = await getFinding(finding.id)
+    await deleteFindingImage(detail.images[0])
+    expect((await getFinding(finding.id)).images).toHaveLength(1)
+    expect(await listFiles(`findings/${finding.id}`)).toHaveLength(2)
+  })
+
+  it('project delete hides its findings', async () => {
+    await loginAs('hedi')
+    const doomed = await createProject({ name: 'Doomed findings', description: null })
+    const { finding } = await createFinding({ ...base('Child'), projectId: doomed.id }, [])
+    await deleteProject(doomed.id)
+    expect(await listFindings({ projectId: doomed.id })).toHaveLength(0)
+    await expect(getFinding(finding.id)).rejects.toThrow('Finding not found')
+  })
+
+  it('listFindings({ taskId })', async () => {
+    await loginAs('hedi')
+    const task = await createTask({
+      projectId: project.id,
+      title: 'Linked',
+      explanation: null,
+      assignedTo: await userId('hedi'),
+      deadline: null,
+      startDate: null,
+      needsReview: false,
+    })
+    const { finding } = await createFinding({ ...base('Linked finding'), taskId: task.id }, [])
+    const linked = await listFindings({ taskId: task.id })
+    expect(linked.map((f) => f.id)).toEqual([finding.id])
   })
 })

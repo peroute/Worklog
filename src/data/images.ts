@@ -2,6 +2,7 @@ import { supabase } from '../lib/supabase'
 import { DataError, toDataError } from './errors'
 import { SIGNED_URL_TTL_SECONDS } from './limits'
 import { toFindingImage, type FindingImageRow } from './mappers'
+import { softDelete } from './softDelete'
 import type { FindingImage } from './types'
 
 export { MAX_IMAGES_PER_FINDING, SIGNED_URL_TTL_SECONDS } from './limits'
@@ -37,11 +38,11 @@ export async function uploadFindingImages(
     const { data, error: rowError } = await supabase
       .from('finding_images')
       .insert({ finding_id: findingId, storage_path: path, position: startPosition + index })
-      .select('id, finding_id, storage_path, position')
+      .select('id, finding_id, storage_path, position, deleted_at, deleted_by')
       .single()
     if (rowError) {
       failed++
-      await bucket().remove([path]) // don't leave a file nobody can see
+      // The orphan file stays: storage has no delete policy, and nothing points at it.
       continue
     }
     rows.push(data as FindingImageRow)
@@ -59,8 +60,9 @@ export async function getFindingImagesFor(findingIds: string[]): Promise<Record<
   if (findingIds.length === 0) return {}
   const { data, error } = await supabase
     .from('finding_images')
-    .select('id, finding_id, storage_path, position')
+    .select('id, finding_id, storage_path, position, deleted_at, deleted_by')
     .in('finding_id', findingIds)
+    .is('deleted_at', null)
     .order('position')
   if (error) throw toDataError(error)
 
@@ -73,28 +75,9 @@ export async function getFindingImagesFor(findingIds: string[]): Promise<Record<
   return grouped
 }
 
-/** Removes one screenshot: DB row first (permission check), then the file. */
-export async function deleteFindingImage(image: FindingImage): Promise<void> {
-  const { data, error } = await supabase.from('finding_images').delete().eq('id', image.id).select('id')
-  if (error) throw toDataError(error)
-  if (!data || data.length === 0) throw new DataError('Only the author or lead can remove this screenshot')
-  await removeStoredFiles([image.storagePath])
-}
-
-/** Storage paths of every screenshot attached to the given findings. */
-export async function listImagePaths(findingIds: string[]): Promise<string[]> {
-  if (findingIds.length === 0) return []
-  const { data, error } = await supabase.from('finding_images').select('storage_path').in('finding_id', findingIds)
-  if (error) throw toDataError(error)
-  return (data as { storage_path: string }[]).map((r) => r.storage_path)
-}
-
-/** Deletes files from storage. Call only AFTER their DB rows are gone (see storage migration). */
-export async function removeStoredFiles(paths: string[]): Promise<void> {
-  if (paths.length === 0) return
-  const { error } = await bucket().remove(paths)
-  if (error) throw new DataError('Deleted, but some screenshot files could not be cleaned up', error)
-}
+/** Hides one screenshot (soft delete). The file stays in storage so a restore is lossless. */
+export const deleteFindingImage = (image: FindingImage): Promise<void> =>
+  softDelete('finding_images', image.id, 'Screenshot')
 
 /** Short-lived URLs for private files, keyed by storage path. */
 export async function signImagePaths(paths: string[]): Promise<Record<string, string>> {

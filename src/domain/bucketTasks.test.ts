@@ -4,14 +4,14 @@ import { bucketTasks, isOverdue } from './bucketTasks'
 
 const viewed = '2026-10-29'
 
-describe('bucketTasks (Today column groups, spec §7.2)', () => {
+describe('bucketTasks (Today column groups)', () => {
   const overdue = makeTask({ title: 'overdue', deadline: '2026-10-28' })
-  const dueToday = makeTask({ title: 'due today', deadline: '2026-10-29' })
+  const dueToday = makeTask({ title: 'due today', deadline: '2026-10-29', status: 'in_progress' })
   const upcoming = makeTask({ title: 'upcoming', deadline: '2026-11-05' })
   const noDeadline = makeTask({ title: 'no deadline' })
   // 03:00 UTC Oct 30 = 22:00 Central Oct 29 → completed on the viewed day
-  const doneToday = makeTask({ title: 'done today', status: 'submitted', doneAt: '2026-10-30T03:00:00Z' })
-  const doneEarlier = makeTask({ title: 'done earlier', status: 'submitted', doneAt: '2026-10-27T15:00:00Z' })
+  const doneToday = makeTask({ title: 'done today', status: 'done', doneAt: '2026-10-30T03:00:00Z' })
+  const doneEarlier = makeTask({ title: 'done earlier', status: 'done', doneAt: '2026-10-27T15:00:00Z' })
   const someoneElse = makeTask({ title: 'not mine', assignedTo: khaushik.id, deadline: '2026-10-28' })
 
   const buckets = bucketTasks(
@@ -21,7 +21,7 @@ describe('bucketTasks (Today column groups, spec §7.2)', () => {
   )
   const titles = (tasks: { title: string }[]) => tasks.map((t) => t.title)
 
-  it('puts overdue and due-today tasks in dueOrOverdue', () => {
+  it('puts overdue and due-today tasks in dueOrOverdue (todo and in_progress alike)', () => {
     expect(titles(buckets.dueOrOverdue)).toEqual(['overdue', 'due today'])
   })
 
@@ -38,40 +38,42 @@ describe('bucketTasks (Today column groups, spec §7.2)', () => {
   })
 
   it('drops tasks finished on other days and tasks assigned to someone else', () => {
-    const all = [...buckets.dueOrOverdue, ...buckets.upcoming, ...buckets.noDeadline, ...buckets.completed]
+    const all = Object.values(buckets).flat()
     expect(titles(all)).not.toContain('done earlier')
     expect(titles(all)).not.toContain('not mine')
   })
 })
 
 describe('isOverdue', () => {
-  it('is overdue only when open and the deadline has passed', () => {
+  it('is overdue only when open (todo/in_progress/blocked) and the deadline has passed', () => {
     expect(isOverdue(makeTask({ deadline: '2026-10-28' }), viewed)).toBe(true)
+    expect(isOverdue(makeTask({ deadline: '2026-10-28', status: 'in_progress' }), viewed)).toBe(true)
+    expect(isOverdue(makeTask({ deadline: '2026-10-28', status: 'blocked' }), viewed)).toBe(true)
     expect(isOverdue(makeTask({ deadline: '2026-10-29' }), viewed)).toBe(false)
     expect(isOverdue(makeTask({ deadline: null }), viewed)).toBe(false)
-    expect(isOverdue(makeTask({ deadline: '2026-10-28', status: 'submitted' }), viewed)).toBe(false)
+    expect(isOverdue(makeTask({ deadline: '2026-10-28', status: 'waiting_for_review' }), viewed)).toBe(false)
+    expect(isOverdue(makeTask({ deadline: '2026-10-28', status: 'done' }), viewed)).toBe(false)
   })
 })
 
-describe('bucketTasks with the review flow', () => {
+describe('bucketTasks with blocked and review', () => {
   const finishedToday = '2026-10-30T03:00:00Z' // 22:00 Central on Oct 29
   const tasks = [
-    makeTask({ title: 'sent back', status: 'changes_requested', doneAt: finishedToday }),
-    makeTask({ title: 'waiting', status: 'submitted', doneAt: finishedToday }),
-    makeTask({ title: 'resubmitted', status: 'resubmitted', doneAt: finishedToday }),
-    makeTask({ title: 'approved', status: 'approved', doneAt: finishedToday }),
-    makeTask({ title: 'sent back, someone else', status: 'changes_requested', assignedTo: khaushik.id }),
+    makeTask({ title: 'stuck', status: 'blocked', blockedReason: 'API down' }),
+    makeTask({ title: 'waiting', status: 'waiting_for_review', doneAt: finishedToday }),
+    makeTask({ title: 'approved', status: 'done', doneAt: finishedToday }),
+    makeTask({ title: 'stuck, someone else', status: 'blocked', assignedTo: khaushik.id }),
   ]
   const buckets = bucketTasks(tasks, hedi.id, '2026-10-29')
 
-  it('puts sent-back tasks in their own group, not in any other', () => {
-    expect(buckets.changesRequested.map((t) => t.title)).toEqual(['sent back'])
-    expect(buckets.completed.map((t) => t.title)).not.toContain('sent back')
+  it('puts blocked tasks in their own group, not in any other', () => {
+    expect(buckets.blocked.map((t) => t.title)).toEqual(['stuck'])
+    expect(buckets.completed.map((t) => t.title)).not.toContain('stuck')
     expect(buckets.dueOrOverdue).toHaveLength(0)
   })
 
-  it('counts submitted, resubmitted and approved work as completed on the day it was finished', () => {
-    expect(buckets.completed.map((t) => t.title)).toEqual(['waiting', 'resubmitted', 'approved'])
+  it('counts waiting-for-review and done work as completed on the day it was finished', () => {
+    expect(buckets.completed.map((t) => t.title)).toEqual(['waiting', 'approved'])
   })
 })
 
@@ -83,7 +85,7 @@ describe('bucketTasks with a start day', () => {
   const finishedEarly = makeTask({
     title: 'finished early',
     startDate: '2026-11-03',
-    status: 'submitted',
+    status: 'done',
     doneAt: '2026-10-29T15:00:00Z',
   })
 

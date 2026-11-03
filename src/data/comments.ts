@@ -14,7 +14,7 @@ export async function listComments(target: CommentTarget): Promise<Comment[]> {
   return (data as CommentRow[]).map(toComment)
 }
 
-/** Newest comment per item (Review page previews), keyed by finding or task id. */
+/** Newest comment per item (inbox previews), keyed by finding or task id. */
 export async function listLatestComments(target: {
   findingIds?: string[]
   taskIds?: string[]

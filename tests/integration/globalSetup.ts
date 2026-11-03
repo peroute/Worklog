@@ -3,7 +3,7 @@ import { serviceClient, TEST_PASSWORD, TEST_USERS } from './admin'
 
 /**
  * Runs once before all integration tests: makes sure the 3 test accounts exist
- * (public sign-up is off, so they're created with the admin API) and that Lead is the lead.
+ * (public sign-up is off, so they're created with the admin API) (all equal; "Lead" is just a fixture name).
  */
 export default async function setup(): Promise<void> {
   const admin = serviceClient(loadEnv('test', process.cwd(), ''))
@@ -22,10 +22,4 @@ export default async function setup(): Promise<void> {
     })
     if (error) throw error
   }
-
-  const { error: roleError } = await admin
-    .from('profiles')
-    .update({ role: 'lead' })
-    .eq('display_name', TEST_USERS.lead.displayName)
-  if (roleError) throw roleError
 }

@@ -3,11 +3,12 @@ import { extensionFor, isImage } from './attachmentRules'
 import { DataError, toDataError } from './errors'
 import { SIGNED_URL_TTL_SECONDS } from './limits'
 import { toTaskAttachment, type TaskAttachmentRow } from './mappers'
+import { softDelete } from './softDelete'
 import type { AttachmentKind, TaskAttachment } from './types'
 
 export const TASK_ATTACHMENT_BUCKET = 'task-attachments'
 
-const COLUMNS = 'id, task_id, storage_path, file_name, mime_type, size_bytes, position, uploaded_by, kind'
+const COLUMNS = 'id, task_id, storage_path, file_name, mime_type, size_bytes, position, uploaded_by, kind, deleted_at, deleted_by'
 
 const bucket = () => supabase.storage.from(TASK_ATTACHMENT_BUCKET)
 
@@ -21,7 +22,7 @@ export interface PendingAttachment {
 /**
  * Uploads attachments one by one; a failure is counted and the rest continue.
  * The DB row is written only after its file exists, so a row never points at nothing.
- * `kind`: 'brief' for the creator's files, 'proof' for the assignee's (the DB checks who may add which).
+ * `kind`: 'brief' for the creator's files, 'proof' for the assignee's (just a label, anyone on the team may add either).
  */
 export async function uploadTaskAttachments(
   taskId: string,
@@ -53,7 +54,7 @@ export async function uploadTaskAttachments(
     })
     if (rowError) {
       failed++
-      await bucket().remove([path]) // don't leave a file nobody can see
+      // The orphan file stays: storage has no delete policy, and nothing points at it.
       continue
     }
     uploaded++
@@ -68,6 +69,7 @@ export async function listTaskAttachments(taskId: string): Promise<TaskAttachmen
     .from('task_attachments')
     .select(COLUMNS)
     .eq('task_id', taskId)
+    .is('deleted_at', null)
     .order('position')
   if (error) throw toDataError(error)
 
@@ -108,25 +110,6 @@ async function signAttachments(rows: TaskAttachmentRow[]): Promise<Record<string
   return urls
 }
 
-/** Removes one attachment: DB row first (permission check happens there), then the file. */
-export async function deleteTaskAttachment(attachment: TaskAttachment): Promise<void> {
-  const { data, error } = await supabase.from('task_attachments').delete().eq('id', attachment.id).select('id')
-  if (error) throw toDataError(error)
-  if (!data || data.length === 0) throw new DataError('Only whoever added this attachment, or the lead, can remove it')
-  await removeTaskAttachmentFiles([attachment.storagePath])
-}
-
-/** Storage paths of every attachment on the given tasks (collected before a delete). */
-export async function listTaskAttachmentPaths(taskIds: string[]): Promise<string[]> {
-  if (taskIds.length === 0) return []
-  const { data, error } = await supabase.from('task_attachments').select('storage_path').in('task_id', taskIds)
-  if (error) throw toDataError(error)
-  return (data as { storage_path: string }[]).map((r) => r.storage_path)
-}
-
-/** Deletes files from storage. Call only AFTER their DB rows are gone (see the migration). */
-export async function removeTaskAttachmentFiles(paths: string[]): Promise<void> {
-  if (paths.length === 0) return
-  const { error } = await bucket().remove(paths)
-  if (error) throw new DataError('Deleted, but some attachment files could not be cleaned up', error)
-}
+/** Hides one attachment (soft delete). The file stays in storage so a restore is lossless. */
+export const deleteTaskAttachment = (attachment: TaskAttachment): Promise<void> =>
+  softDelete('task_attachments', attachment.id, 'Attachment')

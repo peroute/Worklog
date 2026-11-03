@@ -25,7 +25,7 @@ describe('checklist mutations', () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     const refreshed = invalidate.mock.calls.map(([filters]) => JSON.stringify(filters?.queryKey))
-    expect(refreshed).toEqual(expect.arrayContaining(['["tasks"]', '["today"]', '["projects"]', '["review"]']))
+    expect(refreshed).toEqual(expect.arrayContaining(['["tasks"]', '["today"]', '["projects"]', '["inbox"]']))
   })
 
   // Ticking A then B quickly: if A's refetch ran while B was still saving, the server's answer

@@ -8,11 +8,12 @@ import { StatusBadge } from '../../components/StatusBadge'
 import { statusEdge, ui } from '../../components/ui'
 import type { FindingStatus, TaskStatus } from '../../data/types'
 import { groupFindingsByDate } from '../../domain/groupFindings'
-import { canDeleteProject } from '../../domain/permissions'
+import { FINDING_STATUS_LABEL, TASK_STATUS_LABEL } from '../../domain/actions'
 import { formatDayHeading } from '../../lib/dates'
 import { useMe } from '../auth/useMe'
 import { FindingDetails } from '../findings/FindingDetails'
 import { useFindingImages, useFindings } from '../findings/queries'
+import { NewDot } from '../items/NewDot'
 import { useTasks } from '../tasks/queries'
 import { TaskRow } from '../tasks/TaskRow'
 import { nameOf, useProfiles } from '../team/queries'
@@ -106,11 +107,9 @@ export function ProjectPage() {
             <button type="button" onClick={() => setEditing(true)} className={ui.btnSecondary}>
               Edit
             </button>
-            {me && canDeleteProject(me) && (
-              <button type="button" onClick={() => setDeleting(true)} className={ui.btnDangerGhost}>
-                Delete project
-              </button>
-            )}
+            <button type="button" onClick={() => setDeleting(true)} className={ui.btnDangerGhost}>
+              Delete project
+            </button>
           </div>
         </header>
       )}
@@ -128,11 +127,11 @@ export function ProjectPage() {
               className={ui.select}
             >
               <option value="all">All</option>
-              <option value="todo">To do</option>
-              <option value="submitted">Submitted (waiting for lead)</option>
-              <option value="changes_requested">Changes requested</option>
-              <option value="resubmitted">Resubmitted</option>
-              <option value="approved">Approved</option>
+              {(Object.keys(TASK_STATUS_LABEL) as TaskStatus[]).map((s) => (
+                <option key={s} value={s}>
+                  {TASK_STATUS_LABEL[s]}
+                </option>
+              ))}
             </select>
           </label>
           <Link to={`/tasks/new?projectId=${id}`} className={`${ui.btnSecondary} ml-auto`}>
@@ -181,10 +180,11 @@ export function ProjectPage() {
               className={ui.select}
             >
               <option value="all">All statuses</option>
-              <option value="submitted">Submitted (waiting for lead)</option>
-              <option value="changes_requested">Changes requested</option>
-              <option value="resubmitted">Resubmitted</option>
-              <option value="approved">Approved</option>
+              {(Object.keys(FINDING_STATUS_LABEL) as FindingStatus[]).map((s) => (
+                <option key={s} value={s}>
+                  {FINDING_STATUS_LABEL[s]}
+                </option>
+              ))}
             </select>
           </label>
           <button
@@ -221,8 +221,9 @@ export function ProjectPage() {
                           <Avatar id={finding.authorId} name={author} size="sm" />
                           {author}
                         </span>
-                        <span className="min-w-0 flex-1 basis-full sm:basis-auto">
-                          <span className={`font-semibold ${finding.status === 'submitted' ? 'text-fg' : 'text-fg-muted'}`}>
+                        <span className="flex min-w-0 flex-1 basis-full items-center gap-2 sm:basis-auto">
+                          <NewDot item={{ type: 'finding', id: finding.id }} />
+                          <span className={`font-semibold ${finding.status === 'open' ? 'text-fg' : 'text-fg-muted'}`}>
                             {finding.title}
                           </span>
                         </span>

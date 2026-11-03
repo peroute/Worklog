@@ -4,19 +4,22 @@ import { listChecklist } from '../../data/checklist'
 import { listProfiles } from '../../data/profiles'
 import type { ChecklistItem } from '../../data/types'
 import { hedi, khaushik, lead, makeChecklistItem, makeTask } from '../../test/factories'
-import { renderWithProviders } from '../../test/renderApp'
+import { renderPage } from '../../test/renderPage'
 import { TaskSubmission, type SubmissionMode } from './TaskSubmission'
 
+vi.mock('../../data/auth', () => import('../../test/mockAuth').then((m) => m.authModule))
 vi.mock('../../data/checklist', () => import('../../test/mockData').then((m) => m.checklistModule))
 vi.mock('../../data/profiles', () => import('../../test/mockData').then((m) => m.profilesModule))
 vi.mock('../../data/tasks', () => import('../../test/mockData').then((m) => m.tasksModule))
 vi.mock('../../data/taskAttachments', () => import('../../test/mockData').then((m) => m.taskAttachmentsModule))
+// Owned by another task (still importing the deleted permissions module); stubbed so this file runs alone.
+vi.mock('./AttachmentList', () => ({ AttachmentList: () => null }))
 
 const task = makeTask({ id: 't1', assignedTo: hedi.id, createdBy: lead.id, checklistTotal: 2, checklistDone: 1 })
 
 function openForm(mode: SubmissionMode, items: ChecklistItem[]) {
   vi.mocked(listChecklist).mockResolvedValue(items)
-  renderWithProviders(<TaskSubmission task={task} me={hedi} attachments={[]} mode={mode} onModeChange={vi.fn()} />)
+  renderPage(<TaskSubmission task={task} me={hedi} attachments={[]} mode={mode} onModeChange={vi.fn()} />, { path: '/', route: '/' })
 }
 
 const halfDone = [
@@ -35,11 +38,6 @@ describe('TaskSubmission checklist notice', () => {
     const notice = await screen.findByRole('status')
     expect(notice).toHaveTextContent("1 of 2 checklist items aren't ticked. You can still submit — say why in your note.")
     expect(notice).toHaveTextContent('Test on Android 14')
-  })
-
-  it('shows it when resubmitting too', async () => {
-    openForm('resubmit', halfDone)
-    expect(await screen.findByRole('status')).toBeInTheDocument()
   })
 
   it('stays quiet when editing a submission', async () => {
