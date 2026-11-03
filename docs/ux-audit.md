@@ -44,6 +44,7 @@
 Button → "Request changes"; `send_back_*()` RPCs → `request_changes_*()`; finding action `close` → `approve`. Chosen over labels-only so future code never has to translate between two vocabularies.
 
 - [ ] **1b. Today tiles disagree with the Review badge and ignore the viewed date**
+**Partial:** nav badge and the "Your turn" page now share one computation (`useInbox`); tiles are still team-wide, all-time (except Overdue/Done), not labelled as such, and not links.
 **Problem:**
 - "Waiting for lead" counts the lead's own work; the Review page/badge excludes it → lead sees tile 5, badge 3.
 - Waiting / Needs review / Overdue are all-time counts sitting under a date heading; browsing past days doesn't change them, so they look broken.

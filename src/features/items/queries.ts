@@ -48,7 +48,7 @@ export type StatusChange =
   | { type: 'task'; id: string; to: TaskStatus; comment?: string; reason?: string; note?: string }
 
 /** Everything that shows an item's status, its history or a comment. */
-const ITEM_VIEWS = ['findings', 'tasks', 'projects', 'today', 'review', 'comments', 'activity', 'unseen']
+const ITEM_VIEWS = ['findings', 'tasks', 'projects', 'today', 'inbox', 'comments', 'activity', 'unseen']
 
 /**
  * One call for any status move. Settles with a refetch whether it worked or not: when the database

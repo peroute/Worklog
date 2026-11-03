@@ -11,7 +11,7 @@ import {
 import { listProfiles } from '../../data/profiles'
 import type { ChecklistItem, Profile, TaskStatus } from '../../data/types'
 import { hedi, khaushik, lead, makeChecklistItem, makeTask } from '../../test/factories'
-import { renderWithProviders } from '../../test/renderPage'
+import { renderWithProviders } from '../../test/renderApp'
 import { ChecklistSection } from './ChecklistSection'
 
 vi.mock('../../data/checklist', () => import('../../test/mockData').then((m) => m.checklistModule))

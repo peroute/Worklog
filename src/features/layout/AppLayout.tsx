@@ -7,7 +7,7 @@ import { ThemeToggle } from '../../components/ThemeToggle'
 import { ui } from '../../components/ui'
 import { signOut } from '../../data/auth'
 import { useMe } from '../auth/useMe'
-import { useReviewCount } from '../review/queries'
+import { useInbox } from '../inbox/queries'
 
 const navClass = ({ isActive }: { isActive: boolean }) =>
   `shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
@@ -31,7 +31,7 @@ export function BrandMark() {
 /** Sticky top bar + page content. Shown for every signed-in route. */
 export function AppLayout() {
   const { me } = useMe()
-  const reviewCount = useReviewCount(me)
+  const { count } = useInbox()
   const queryClient = useQueryClient()
   const [error, setError] = useState<string | null>(null)
 
@@ -64,15 +64,16 @@ export function AppLayout() {
             <NavLink to="/tasks" className={navClass}>
               Tasks
             </NavLink>
-            <NavLink to="/review" className={navClass}>
+            <NavLink to="/inbox" className={navClass}>
               <span className="flex items-center gap-1.5">
-                Review
-                {reviewCount > 0 && (
-                  <span className="rounded-full bg-review-edge px-1.5 text-xs font-semibold text-white">
-                    {reviewCount}
-                  </span>
+                Your turn
+                {count > 0 && (
+                  <span className="rounded-full bg-open-edge px-1.5 text-xs font-semibold text-white">{count}</span>
                 )}
               </span>
+            </NavLink>
+            <NavLink to="/trash" className={navClass}>
+              Trash
             </NavLink>
           </nav>
           <div className="ml-auto flex items-center gap-2">
@@ -81,7 +82,6 @@ export function AppLayout() {
               <span className="flex items-center gap-2 text-sm text-fg">
                 <Avatar id={me.id} name={me.displayName} size="sm" />
                 <span className="hidden sm:inline">{me.displayName}</span>
-                {me.role === 'lead' && <span className={`${ui.tag} hidden sm:inline-flex`}>Lead</span>}
               </span>
             )}
             <button type="button" onClick={onSignOut} className={ui.btnGhost}>

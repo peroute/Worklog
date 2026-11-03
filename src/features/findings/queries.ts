@@ -42,7 +42,7 @@ export function useFindingImages(findingIds: string[], enabled: boolean) {
 /** Everything that shows findings or their counts. */
 function invalidateFindingViews(queryClient: QueryClient) {
   return Promise.all(
-    [['findings'], ['projects'], ['today'], ['review'], ['comments'], ['activity'], ['trash']].map((queryKey) =>
+    [['findings'], ['projects'], ['today'], ['inbox'], ['comments'], ['activity'], ['trash']].map((queryKey) =>
       queryClient.invalidateQueries({ queryKey }),
     ),
   )

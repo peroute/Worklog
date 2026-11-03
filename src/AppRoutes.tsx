@@ -3,10 +3,11 @@ import { LoginPage } from './features/auth/LoginPage'
 import { RequireAuth } from './features/auth/RequireAuth'
 import { FindingDetailPage } from './features/findings/FindingDetailPage'
 import { FindingFormPage } from './features/findings/FindingForm'
+import { InboxPage } from './features/inbox/InboxPage'
 import { AppLayout } from './features/layout/AppLayout'
 import { ProjectPage } from './features/projects/ProjectPage'
 import { ProjectsPage } from './features/projects/ProjectsPage'
-import { ReviewPage } from './features/review/ReviewPage'
+import { TrashPage } from './features/trash/TrashPage'
 import { TaskDetailPage } from './features/tasks/TaskDetailPage'
 import { TaskFormPage } from './features/tasks/TaskForm'
 import { TasksPage } from './features/tasks/TasksPage'
@@ -30,7 +31,9 @@ export function AppRoutes() {
         <Route path="findings/new" element={<FindingFormPage />} />
         <Route path="findings/:id" element={<FindingDetailPage />} />
         <Route path="findings/:id/edit" element={<FindingFormPage />} />
-        <Route path="review" element={<ReviewPage />} />
+        <Route path="inbox" element={<InboxPage />} />
+        <Route path="review" element={<Navigate to="/inbox" replace />} />
+        <Route path="trash" element={<TrashPage />} />
         <Route path="tasks" element={<TasksPage />} />
         <Route path="tasks/new" element={<TaskFormPage />} />
         <Route path="tasks/:id" element={<TaskDetailPage />} />

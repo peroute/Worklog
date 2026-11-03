@@ -51,7 +51,7 @@ export function useTaskAttachments(taskId: string, options: { enabled?: boolean 
 /** Everything that shows tasks or their counts (checklist changes use it too). */
 export function invalidateTaskViews(queryClient: QueryClient) {
   return Promise.all(
-    [['tasks'], ['projects'], ['today'], ['review'], ['comments'], ['activity'], ['trash']].map((queryKey) =>
+    [['tasks'], ['projects'], ['today'], ['inbox'], ['comments'], ['activity'], ['trash']].map((queryKey) =>
       queryClient.invalidateQueries({ queryKey }),
     ),
   )

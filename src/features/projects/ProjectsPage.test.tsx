@@ -44,6 +44,8 @@ describe('ProjectsPage', () => {
         createdAt: '',
         openFindings: 4,
         openTasks: 2,
+        deletedAt: null,
+        deletedBy: null,
       },
     ])
     renderApp('/projects')

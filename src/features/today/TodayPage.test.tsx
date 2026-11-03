@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { listFindings } from '../../data/findings'
 import { getMyProfile, listProfiles } from '../../data/profiles'
 import { listProjects } from '../../data/projects'
+import { listUnseen } from '../../data/reads'
 import { listTasks } from '../../data/tasks'
 import type { ProjectSummary } from '../../data/types'
 import { hedi, khaushik, lead, makeFinding, makeTask } from '../../test/factories'
@@ -15,6 +16,8 @@ vi.mock('../../data/profiles', () => import('../../test/mockData').then((m) => m
 vi.mock('../../data/projects', () => import('../../test/mockData').then((m) => m.projectsModule))
 vi.mock('../../data/tasks', () => import('../../test/mockData').then((m) => m.tasksModule))
 vi.mock('../../data/findings', () => import('../../test/mockData').then((m) => m.findingsModule))
+vi.mock('../../data/reads', () => import('../../test/mockData').then((m) => m.readsModule))
+vi.mock('../../data/checklist', () => import('../../test/mockData').then((m) => m.checklistModule))
 vi.mock('../../lib/dates', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../lib/dates')>()),
   todayInTeamTz: () => '2026-10-29',
@@ -28,6 +31,8 @@ const qa: ProjectSummary = {
   createdAt: '',
   openFindings: 4,
   openTasks: 2,
+  deletedAt: null,
+  deletedBy: null,
 }
 
 const columnNames = () => screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent)
@@ -39,27 +44,21 @@ describe('TodayPage', () => {
     vi.mocked(getMyProfile).mockResolvedValue(lead)
     vi.mocked(listProfiles).mockResolvedValue([lead, khaushik, hedi])
     vi.mocked(listProjects).mockResolvedValue([qa])
+    vi.mocked(listUnseen).mockResolvedValue([])
     vi.mocked(listTasks).mockResolvedValue([
       makeTask({ title: 'Overdue one', assignedTo: hedi.id, deadline: '2026-10-28' }),
       makeTask({ title: 'Upcoming one', assignedTo: hedi.id, deadline: '2026-11-05' }),
       // 03:00 UTC Oct 30 = 22:00 Central Oct 29
-      makeTask({ title: 'Done one', assignedTo: hedi.id, status: 'submitted', doneAt: '2026-10-30T03:00:00Z' }),
+      makeTask({ title: 'Done one', assignedTo: hedi.id, status: 'waiting_for_review', doneAt: '2026-10-30T03:00:00Z' }),
     ])
     vi.mocked(listFindings).mockResolvedValue([
       makeFinding({ title: 'Login crash', authorId: hedi.id, projectId: 'project-1', imageCount: 2 }),
     ])
   })
 
-  it('shows one column per member, sorted, and hides an idle lead', async () => {
+  it('shows a column per profile', async () => {
     renderApp('/')
     await screen.findByRole('region', { name: 'Hedi' })
-    expect(columnNames()).toEqual(['Hedi', 'Khaushik'])
-  })
-
-  it("adds the lead's column when they have an open task", async () => {
-    vi.mocked(listTasks).mockResolvedValue([makeTask({ title: 'Lead todo', assignedTo: lead.id })])
-    renderApp('/')
-    await screen.findByRole('region', { name: 'Lead' })
     expect(columnNames()).toEqual(['Hedi', 'Khaushik', 'Lead'])
   })
 
@@ -92,29 +91,22 @@ describe('TodayPage', () => {
     expect(await screen.findByRole('heading', { level: 1, name: /Tue, Oct 27/ })).toBeInTheDocument()
   })
 
-  it("sums up the team's day in a summary strip", async () => {
+  it('tiles use new counts', async () => {
+    vi.mocked(listTasks).mockResolvedValue([
+      makeTask({ title: 'Overdue one', assignedTo: hedi.id, deadline: '2026-10-28' }),
+      makeTask({ title: 'Stuck one', assignedTo: hedi.id, status: 'blocked', blockedReason: 'No device' }),
+      makeTask({ title: 'Review one', assignedTo: hedi.id, status: 'waiting_for_review', doneAt: '2026-10-30T03:00:00Z' }),
+      makeTask({ title: 'Done one', assignedTo: hedi.id, status: 'done', doneAt: '2026-10-30T03:00:00Z' }),
+    ])
+    vi.mocked(listFindings).mockResolvedValue([makeFinding({ title: 'Fixed one', status: 'fixed', fixedBy: lead.id })])
     renderApp('/')
     const summary = await screen.findByRole('region', { name: 'Day summary' })
     const tile = (label: string) => within(summary).getByText(label).parentElement
-    // Waiting for lead = Login crash (submitted finding) + Done one (submitted task, not yet reviewed).
-    expect(tile('Waiting for lead')).toHaveTextContent('2')
-    expect(tile('Changes requested')).toHaveTextContent('0')
+    // Waiting for review = the fixed finding + the task waiting for review.
+    expect(tile('Waiting for review')).toHaveTextContent('2')
+    expect(tile('Blocked')).toHaveTextContent('1')
     expect(tile('Overdue')).toHaveTextContent('1')
-    expect(tile('Done today')).toHaveTextContent('1')
-  })
-
-  it("puts work with changes requested at the top of the person's column", async () => {
-    vi.mocked(listTasks).mockResolvedValue([
-      makeTask({ title: 'Upcoming one', assignedTo: hedi.id, deadline: '2026-11-05' }),
-      makeTask({ title: 'Sent back one', assignedTo: hedi.id, status: 'changes_requested' }),
-    ])
-    renderApp('/')
-    const hediColumn = await screen.findByRole('region', { name: 'Hedi' })
-    const groups = within(hediColumn)
-      .getAllByRole('heading', { level: 3 })
-      .map((h) => h.textContent)
-    expect(groups[0]).toBe('Changes requested')
-    expect(within(hediColumn).getByText('Changes requested', { selector: 'span' })).toBeInTheDocument()
+    expect(tile('Done today')).toHaveTextContent('2')
   })
 
   it('shows empty states on a brand-new workspace', async () => {

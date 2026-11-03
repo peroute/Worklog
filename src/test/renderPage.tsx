@@ -6,7 +6,7 @@ import { SessionProvider } from '../features/auth/SessionProvider'
 
 /**
  * Mounts ONE page (plus stub routes for places it navigates to) with the providers it needs.
- * Unlike renderApp it doesn't import every page, so it works while other pages are mid-change.
+ * Unlike renderApp it doesn't import every page, so a page test only loads what it renders. (renderWithProviders lives in renderApp.tsx.)
  */
 export function renderPage(
   element: ReactNode,
@@ -28,17 +28,4 @@ export function renderPage(
     </QueryClientProvider>,
   )
   return { ...view, queryClient }
-}
-
-/**
- * Mounts a single component with the providers it needs (query cache + router).
- * Same as the one in renderApp, minus the import of every page: usable while other pages are mid-change.
- */
-export function renderWithProviders(ui: ReactNode) {
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  return render(
-    <QueryClientProvider client={queryClient}>
-      <MemoryRouter>{ui}</MemoryRouter>
-    </QueryClientProvider>,
-  )
 }

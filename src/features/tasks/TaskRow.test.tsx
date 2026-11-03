@@ -6,7 +6,7 @@ import { listProfiles } from '../../data/profiles'
 import { listUnseen } from '../../data/reads'
 import { deleteTask, setTaskStatus } from '../../data/tasks'
 import { hedi, khaushik, lead, makeChecklistItem, makeTask } from '../../test/factories'
-import { renderWithProviders } from '../../test/renderPage'
+import { renderWithProviders } from '../../test/renderApp'
 import { TaskRow } from './TaskRow'
 
 vi.mock('../../data/tasks', () => import('../../test/mockData').then((m) => m.tasksModule))

@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { listProfiles } from '../../data/profiles'
 import { deleteTaskAttachment } from '../../data/taskAttachments'
 import { hedi, khaushik, lead, makeAttachment, makeTask } from '../../test/factories'
-import { renderWithProviders } from '../../test/renderPage'
+import { renderWithProviders } from '../../test/renderApp'
 import { AttachmentList } from './AttachmentList'
 
 vi.mock('../../data/profiles', () => import('../../test/mockData').then((m) => m.profilesModule))

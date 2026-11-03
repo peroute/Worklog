@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { listProfiles } from '../../data/profiles'
 import { listUnseen } from '../../data/reads'
 import { hedi, khaushik, lead, makeFinding, makeTask } from '../../test/factories'
-import { renderWithProviders } from '../../test/renderPage'
+import { renderWithProviders } from '../../test/renderApp'
 import { PersonColumn } from './PersonColumn'
 
 vi.mock('../../data/profiles', () => import('../../test/mockData').then((m) => m.profilesModule))
