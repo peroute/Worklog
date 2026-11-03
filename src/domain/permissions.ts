@@ -29,6 +29,17 @@ export function canRemoveTaskAttachment(
   return t.status !== 'approved' && attachment.uploadedBy === me.id
 }
 
+/** Write the checklist (add, rename, reorder, remove): the task's creator until approved, or the lead. */
+export function canEditChecklist(me: Profile, t: Pick<Task, 'createdBy' | 'status'>): boolean {
+  return me.role === 'lead' || (me.id === t.createdBy && t.status !== 'approved')
+}
+
+/** Tick checklist items: the assignee while the task is theirs to work on, or the lead. */
+export function canTickChecklist(me: Profile, t: Pick<Task, 'assignedTo' | 'status'>): boolean {
+  if (me.role === 'lead') return true
+  return me.id === t.assignedTo && (t.status === 'todo' || t.status === 'changes_requested')
+}
+
 export type FindingAction = 'approve' | 'requestChanges' | 'reopen' | 'resubmit'
 
 /** Status buttons `me` may use on a finding. */

@@ -5,8 +5,10 @@ import {
   canAttachToTask,
   canComment,
   canDeleteProject,
+  canEditChecklist,
   canEditContent,
   canRemoveTaskAttachment,
+  canTickChecklist,
   findingActions,
   taskActions,
 } from './permissions'
@@ -126,5 +128,32 @@ describe('canComment', () => {
     expect(canComment(khaushik, { kind: 'finding', authorId: hedi.id })).toBe(false)
     expect(canComment(khaushik, { kind: 'task', assignedTo: hedi.id, createdBy: khaushik.id })).toBe(true)
     expect(canComment(khaushik, { kind: 'task', assignedTo: hedi.id, createdBy: lead.id })).toBe(false)
+  })
+})
+
+// Mirrors task_checklist_items_guard: the creator writes the list, the assignee ticks it.
+describe('checklist permissions', () => {
+  it('lets the creator edit the list until approval, and the lead always', () => {
+    expect(canEditChecklist(hedi, makeTask({ createdBy: hedi.id, status: 'submitted' }))).toBe(true)
+    expect(canEditChecklist(hedi, makeTask({ createdBy: hedi.id, status: 'approved' }))).toBe(false)
+    expect(canEditChecklist(lead, makeTask({ createdBy: hedi.id, status: 'approved' }))).toBe(true)
+  })
+
+  it('does not let the assignee edit the list', () => {
+    expect(canEditChecklist(khaushik, makeTask({ createdBy: hedi.id, assignedTo: khaushik.id }))).toBe(false)
+  })
+
+  it('lets the assignee tick only while it is their turn', () => {
+    const mine = (status: TaskStatus) => makeTask({ createdBy: hedi.id, assignedTo: khaushik.id, status })
+    expect(canTickChecklist(khaushik, mine('todo'))).toBe(true)
+    expect(canTickChecklist(khaushik, mine('changes_requested'))).toBe(true)
+    for (const status of ['submitted', 'resubmitted', 'approved'] as TaskStatus[]) {
+      expect(canTickChecklist(khaushik, mine(status))).toBe(false)
+    }
+  })
+
+  it('lets the lead tick at any status but not the creator', () => {
+    expect(canTickChecklist(lead, makeTask({ assignedTo: khaushik.id, status: 'approved' }))).toBe(true)
+    expect(canTickChecklist(hedi, makeTask({ createdBy: hedi.id, assignedTo: khaushik.id, status: 'todo' }))).toBe(false)
   })
 })

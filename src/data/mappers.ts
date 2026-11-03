@@ -2,6 +2,7 @@
 // This is the seam a future FastAPI backend would replace.
 import type {
   AttachmentKind,
+  ChecklistItem,
   Comment,
   Finding,
   FindingImage,
@@ -47,6 +48,19 @@ export interface TaskRow {
   done_at: string | null
   submission_note: string | null
   created_by: string
+  created_at: string
+  /** Embedded by TASK_COLUMNS (src/data/tasks.ts): just the done flag of each checklist item. */
+  checklist?: { done: boolean }[]
+}
+
+export interface ChecklistItemRow {
+  id: string
+  task_id: string
+  title: string
+  position: number
+  done: boolean
+  done_by: string | null
+  done_at: string | null
   created_at: string
 }
 
@@ -129,6 +143,19 @@ export const toTask = (r: TaskRow): Task => ({
   doneAt: r.done_at,
   submissionNote: r.submission_note,
   createdBy: r.created_by,
+  createdAt: r.created_at,
+  checklistTotal: r.checklist?.length ?? 0,
+  checklistDone: r.checklist?.filter((i) => i.done).length ?? 0,
+})
+
+export const toChecklistItem = (r: ChecklistItemRow): ChecklistItem => ({
+  id: r.id,
+  taskId: r.task_id,
+  title: r.title,
+  position: r.position,
+  done: r.done,
+  doneBy: r.done_by,
+  doneAt: r.done_at,
   createdAt: r.created_at,
 })
 

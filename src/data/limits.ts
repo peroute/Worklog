@@ -5,3 +5,7 @@ export const SIGNED_URL_TTL_SECONDS = 3600
 // Task attachments. The server enforces the same numbers (task_attachments migration).
 export const MAX_ATTACHMENTS_PER_TASK = 10
 export const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024
+
+// Task checklist. Same numbers as the task_checklist migration.
+export const MAX_CHECKLIST_ITEMS = 50
+export const MAX_CHECKLIST_TITLE = 200
