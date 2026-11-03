@@ -10,7 +10,7 @@ import { useUnseen } from '../items/queries'
 import { nameOf } from '../team/queries'
 import { useInbox, useLatestInboxComments } from './queries'
 
-/** "Your turn" (spec §6): what needs you, and what you handed to someone else and are waiting on. */
+/** "Your turn" (spec §9): what needs you, and what you handed to someone else and are waiting on. */
 export function InboxPage() {
   const { inbox, isPending, error, profiles, projects } = useInbox()
 

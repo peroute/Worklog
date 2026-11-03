@@ -43,3 +43,6 @@ coverage/
 .DS_Store
 Thumbs.db
 /docs
+/docs
+*.md
+docs/ux-audit.md

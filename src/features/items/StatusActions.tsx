@@ -125,6 +125,7 @@ export function StatusActions({ actions, primary, onRun }: StatusActionsProps) {
           title={ACTION_LABEL[asking]}
           label={needsReason(asking) ? "What's blocking it?" : 'Comment'}
           error={error}
+          maxLength={needsReason(asking) ? 500 : undefined}
           onCancel={() => {
             setAsking(null)
             setError(null)

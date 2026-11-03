@@ -78,4 +78,7 @@ export async function getProjectDeleteCounts(
  */
 export const deleteProject = (id: string): Promise<void> => softDelete('projects', id, 'Project')
 
-export const restoreProject = (id: string): Promise<void> => restore('projects', id, 'Project')
+export const restoreProject = (id: string): Promise<void> =>
+  restore('projects', id, 'Project', {
+    unique: 'A project with this name already exists. Rename it first, then restore.',
+  })

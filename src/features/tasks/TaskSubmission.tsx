@@ -81,7 +81,9 @@ export function TaskSubmission({ task, me, attachments, mode, onModeChange }: Ta
         <Avatar id={submitterId} name={submitter} size="sm" />
         <span className="font-semibold text-fg">{submitterId === me?.id ? 'You' : submitter}</span>
         {task.doneAt && (
-          <span className="text-fg-muted">submitted {formatDateTime(task.doneAt)}</span>
+          <span className="text-fg-muted">
+            {task.needsReview ? 'submitted' : 'finished'} {formatDateTime(task.doneAt)}
+          </span>
         )}
       </div>
 
@@ -136,7 +138,8 @@ function SubmitWorkForm({ task, me, mode, proof, totalAttachments, nextPosition,
     setError(null)
     try {
       await submitWork.mutateAsync({
-        note: note.trim() || null,
+        // '' clears a note that was saved before; null leaves "no note" as it is (no pointless history entry).
+        note: note.trim() || (task.submissionNote ? '' : null),
         files,
         startPosition: nextPosition,
         to: mode === 'submit' ? taskActionTarget('finish', task) : null,
@@ -156,7 +159,9 @@ function SubmitWorkForm({ task, me, mode, proof, totalAttachments, nextPosition,
             {copy.title}
           </h2>
           <p className="mt-1 text-sm text-fg-muted">
-            Tell the reviewer what you did and attach proof, so they can approve it without having to ask.
+            {task.needsReview
+              ? 'Tell the reviewer what you did and attach proof, so they can approve it without having to ask.'
+              : 'What did you do? Add a note and any proof for the record.'}
           </p>
         </div>
 

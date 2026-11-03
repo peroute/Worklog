@@ -1,4 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest'
+import { restoreItem } from '../../src/data/trash'
 import { createFinding, getFinding, listFindings } from '../../src/data/findings'
 import {
   createProject,
@@ -51,6 +52,16 @@ describe('projects data layer', () => {
     await restoreProject(project.id)
     expect((await listProjects()).some((p) => p.id === project.id)).toBe(true)
     expect((await getProject(project.id)).deletedAt).toBeNull()
+  })
+
+  it('restoring a project whose name was reused says to rename it first', async () => {
+    await loginAs('hedi')
+    const old = await createProject({ name: 'Reused name', description: null })
+    await deleteProject(old.id)
+    await createProject({ name: 'Reused name', description: null })
+    await expect(restoreItem({ type: 'project', id: old.id })).rejects.toThrow(
+      'A project with this name already exists. Rename it first, then restore.',
+    )
   })
 
   it('project delete hides its tasks and findings, restore brings them back', async () => {

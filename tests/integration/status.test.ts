@@ -78,6 +78,25 @@ describe('status changes (flat team)', () => {
     await expect(setFindingStatus(finding.id, 'verified')).rejects.toBeInstanceOf(DataError)
   })
 
+  it('a refused move says where the item is now, not raw status names', async () => {
+    await loginAs('hedi')
+    const finding = await newFinding('Moved under you')
+    await expect(setFindingStatus(finding.id, 'verified')).rejects.toThrow(
+      'This item moved to Open — refresh and try again.',
+    )
+    const task = await newTask('Moved task', false)
+    await expect(setTaskStatus(task.id, 'waiting_for_review')).rejects.toThrow(/^This item moved to /)
+  })
+
+  it('an empty note on a status move clears the saved note', async () => {
+    await loginAs('hedi')
+    const task = await newTask('Clear my note', false)
+    await setTaskStatus(task.id, 'in_progress', { note: 'First try' })
+    expect((await getTask(task.id)).submissionNote).toBe('First try')
+    await setTaskStatus(task.id, 'done', { note: '' })
+    expect((await getTask(task.id)).submissionNote).toBe('')
+  })
+
   it("task with review: submitter can't approve, someone else can", async () => {
     await loginAs('khaushik')
     const task = await newTask('Retest login', true)

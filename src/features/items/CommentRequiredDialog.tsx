@@ -11,10 +11,12 @@ interface CommentRequiredDialogProps {
   onCancel: () => void
   /** Why the last try failed; the dialog stays open so nothing typed is lost. */
   error?: string | null
+  /** Cap on the text length (the database limits the block reason to 500). */
+  maxLength?: number
 }
 
 /** Some status moves only make sense with words attached ("Need more info" needs the question). */
-export function CommentRequiredDialog({ title, label, onSubmit, onCancel, error }: CommentRequiredDialogProps) {
+export function CommentRequiredDialog({ title, label, onSubmit, onCancel, error, maxLength }: CommentRequiredDialogProps) {
   const titleId = useId()
   const [text, setText] = useState('')
   const [sending, setSending] = useState(false)
@@ -48,7 +50,7 @@ export function CommentRequiredDialog({ title, label, onSubmit, onCancel, error 
         </h2>
         <label className={`${ui.label} mt-4`}>
           {label}
-          <textarea value={text} onChange={(e) => setText(e.target.value)} rows={4} autoFocus className={ui.input} />
+          <textarea value={text} onChange={(e) => setText(e.target.value)} rows={4} autoFocus maxLength={maxLength} className={ui.input} />
         </label>
         {error && (
           <div className="mt-3">

@@ -32,7 +32,7 @@ export interface ProjectSummary extends Project {
   openTasks: number
 }
 
-/** 'brief' = what to do (from the creator). 'proof' = evidence the work is done (from the assignee). */
+/** A label for the file: 'brief' = what to do, 'proof' = evidence the work is done. Anyone on the team may add either. */
 export type AttachmentKind = 'brief' | 'proof'
 
 /** A file attached to a task (screenshot or document). */
@@ -44,7 +44,7 @@ export interface TaskAttachment extends SoftDeletable {
   mimeType: string
   sizeBytes: number
   position: number
-  /** Who added it (the brief from the creator, or proof from whoever did the work). */
+  /** Who added it. */
   uploadedBy: string
   kind: AttachmentKind
   /**

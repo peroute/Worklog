@@ -47,6 +47,12 @@ describe('StatusActions', () => {
     expect(onRun).toHaveBeenCalledWith('block', 'Waiting for IT')
   })
 
+  it('caps the block reason at the database limit of 500', async () => {
+    render(<StatusActions actions={['block']} primary onRun={vi.fn(async () => {})} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Blocked…' }))
+    expect(within(screen.getByRole('dialog')).getByLabelText("What's blocking it?")).toHaveAttribute('maxlength', '500')
+  })
+
   it('closes the More menu on Escape and on an outside click', async () => {
     render(
       <div>

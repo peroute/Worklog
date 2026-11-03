@@ -242,6 +242,25 @@ describe('TaskDetailPage', () => {
     expect(screen.getByLabelText('What did you do?')).toHaveValue('First try')
   })
 
+  it('sends an empty note to clear the one saved earlier', async () => {
+    vi.mocked(getTask).mockResolvedValue(task('in_progress', { needsReview: true, submissionNote: 'First try' }))
+    mount()
+    await userEvent.click(await screen.findByRole('button', { name: 'Mark done' }))
+    const form = screen.getByRole('region', { name: 'Submit your work' })
+    await userEvent.clear(within(form).getByLabelText('What did you do?'))
+    await userEvent.click(within(form).getByRole('button', { name: 'Submit for review' }))
+    await vi.waitFor(() => expect(setTaskStatus).toHaveBeenCalledWith('t1', 'waiting_for_review', { note: '' }))
+  })
+
+  it('uses neutral wording when the task needs no review', async () => {
+    vi.mocked(getTask).mockResolvedValue(task('in_progress', { needsReview: false }))
+    mount()
+    await userEvent.click(await screen.findByRole('button', { name: 'Mark done' }))
+    const form = screen.getByRole('region', { name: 'Mark done' })
+    expect(within(form).queryByText(/Tell the reviewer/)).not.toBeInTheDocument()
+    expect(within(form).getByText(/Add a note and any proof/)).toBeInTheDocument()
+  })
+
   it('shows the submission (who, explanation, proof) apart from the brief', async () => {
     signInAs(lead)
     vi.mocked(getTask).mockResolvedValue(

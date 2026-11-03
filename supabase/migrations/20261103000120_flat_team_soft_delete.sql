@@ -1,6 +1,8 @@
 -- Flat team: soft delete (docs/superpowers/specs/2026-11-03-flat-team-design.md §6).
 -- Nobody can really delete projects, tasks, findings, images or attachments (there are no delete
 -- policies). "Delete" means setting deleted_at; the app reads the live_* views, which hide those rows.
+-- NOTE: the live_* views and project_summaries freeze `t.*` at creation time. Adding a column to
+-- tasks, findings or projects later means recreating those views too.
 -- Restoring is setting deleted_at back to null. Files in Storage are always kept.
 -- findings_guard() / tasks_guard() are NOT touched here: the "deleted items can't change status" rule
 -- is its own trigger, so the guard functions keep a single definition.

@@ -140,14 +140,6 @@ export function useUpdateTask() {
   })
 }
 
-export function useSetTaskStatus() {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: ({ id, status }: { id: string; status: TaskStatus }) => setTaskStatus(id, status),
-    onSuccess: () => invalidateTaskViews(queryClient),
-  })
-}
-
 export function useDeleteTask() {
   const queryClient = useQueryClient()
   return useMutation({
@@ -157,6 +149,7 @@ export function useDeleteTask() {
 }
 
 interface SubmitWorkArgs {
+  /** null = leave the saved note alone; '' = clear it; text = replace it. */
   note: string | null
   files: File[]
   /** Position for the first new file (after the ones already saved). */
@@ -180,8 +173,8 @@ export function useSubmitWork(taskId: string) {
         throw new Error(`${failed} file(s) failed to upload, so nothing was submitted. Try again.`)
       }
       // The note rides along with the status move so both land or neither does.
-      if (to) await setTaskStatus(taskId, to, note ? { note } : {})
-      else await updateTask(taskId, { submissionNote: note })
+      if (to) await setTaskStatus(taskId, to, note !== null ? { note } : {})
+      else await updateTask(taskId, { submissionNote: note || null })
     },
     // Invalidate on failure too: some files may have uploaded before one failed.
     onSettled: () => invalidateTaskViews(queryClient),

@@ -22,7 +22,7 @@ export interface PendingAttachment {
 /**
  * Uploads attachments one by one; a failure is counted and the rest continue.
  * The DB row is written only after its file exists, so a row never points at nothing.
- * `kind`: 'brief' for the creator's files, 'proof' for the assignee's (the DB checks who may add which).
+ * `kind`: 'brief' for the creator's files, 'proof' for the assignee's (just a label, anyone on the team may add either).
  */
 export async function uploadTaskAttachments(
   taskId: string,

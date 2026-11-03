@@ -3,7 +3,7 @@
 -- Two layers:
 --   * set_finding_status / set_task_status: the only way for the app to change a status. They insert
 --     the comment (if any), then update, all in one transaction, so a refused move leaves no comment.
---   * findings_guard / tasks_guard (before update triggers): the actual rules. They refuse a direct
+--   * findings_guard / tasks_guard (before insert or update triggers): the actual rules. They refuse a direct
 --     "update ... set status", compute fixed_by / submitted_by / approved_by themselves, and lock
 --     ownership columns. auth.uid() is null (SQL editor / service role) bypasses them.
 -- The RPCs tell the guards "this change came through me" with two transaction-local session flags:
