@@ -3,7 +3,6 @@ import { ui } from '../../components/ui'
 import { MAX_CHECKLIST_ITEMS } from '../../data/limits'
 import type { ChecklistItem, Profile, Task } from '../../data/types'
 import { isValidChecklistTitle } from '../../domain/checklist'
-import { canEditChecklist, canTickChecklist } from '../../domain/permissions'
 import { formatDayHeading, toTeamDate } from '../../lib/dates'
 import { nameOf, useProfiles } from '../team/queries'
 import {
@@ -35,10 +34,10 @@ export function ChecklistProgress({ done, total }: { done: number; total: number
 }
 
 /**
- * The task page's checklist. The creator/lead writes it (add, move, remove); the assignee ticks it.
- * Which controls show mirrors the DB rules (task_checklist_items_guard); the DB has the last word.
+ * The task page's checklist. Everyone on the team can add, move, remove and tick items.
+ * `me` is still accepted so the callers don't change; it no longer decides what shows.
  */
-export function ChecklistSection({ task, me }: { task: Task; me: Profile | undefined }) {
+export function ChecklistSection({ task }: { task: Task; me?: Profile | undefined }) {
   const headingId = useId()
   const checklist = useChecklist(task.id)
   const profiles = useProfiles()
@@ -50,9 +49,7 @@ export function ChecklistSection({ task, me }: { task: Task; me: Profile | undef
   const [titleError, setTitleError] = useState<string | null>(null)
 
   const items = checklist.data ?? []
-  const canEdit = me ? canEditChecklist(me, task) : false
-  const canTick = me ? canTickChecklist(me, task) : false
-  if (!checklist.isSuccess || (items.length === 0 && !canEdit)) return null
+  if (!checklist.isSuccess) return null
 
   const full = items.length >= MAX_CHECKLIST_ITEMS
   const done = items.filter((i) => i.done).length
@@ -83,8 +80,6 @@ export function ChecklistSection({ task, me }: { task: Task; me: Profile | undef
               item={item}
               first={index === 0}
               last={index === items.length - 1}
-              canTick={canTick}
-              canEdit={canEdit}
               doneByName={item.doneBy ? nameOf(profiles.data, item.doneBy) : null}
               onToggle={(value) => toggle.mutate({ id: item.id, done: value })}
               onMove={(direction) => move.mutate({ id: item.id, direction })}
@@ -94,22 +89,20 @@ export function ChecklistSection({ task, me }: { task: Task; me: Profile | undef
         </ul>
       )}
 
-      {canEdit && (
-        <form onSubmit={onAdd} className="mt-2 flex gap-2">
-          <input
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            placeholder="Add an item…"
-            aria-label="New checklist item"
-            disabled={full || add.isPending}
-            className={ui.input.replace('mt-1.5 ', '')}
-          />
-          <button type="submit" disabled={full || add.isPending} className={ui.btnSecondary}>
-            Add
-          </button>
-        </form>
-      )}
-      {canEdit && full && <p className="mt-1 text-xs text-fg-muted">{CHECKLIST_FULL}</p>}
+      <form onSubmit={onAdd} className="mt-2 flex gap-2">
+        <input
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          placeholder="Add an item…"
+          aria-label="New checklist item"
+          disabled={full || add.isPending}
+          className={ui.input.replace('mt-1.5 ', '')}
+        />
+        <button type="submit" disabled={full || add.isPending} className={ui.btnSecondary}>
+          Add
+        </button>
+      </form>
+      {full && <p className="mt-1 text-xs text-fg-muted">{CHECKLIST_FULL}</p>}
       {titleError && <p className={ui.fieldError}>{titleError}</p>}
       {failure && (
         <p role="alert" className={ui.fieldError}>
@@ -124,24 +117,21 @@ interface ChecklistRowProps {
   item: ChecklistItem
   first: boolean
   last: boolean
-  canTick: boolean
-  canEdit: boolean
   doneByName: string | null
   onToggle: (done: boolean) => void
   onMove: (direction: 'up' | 'down') => void
   onRemove: () => void
 }
 
-function ChecklistRow({ item, first, last, canTick, canEdit, doneByName, onToggle, onMove, onRemove }: ChecklistRowProps) {
+function ChecklistRow({ item, first, last, doneByName, onToggle, onMove, onRemove }: ChecklistRowProps) {
   return (
     <li className="flex items-center gap-2.5 bg-surface px-3 py-2 text-sm">
       <input
         type="checkbox"
         checked={item.done}
-        disabled={!canTick}
         onChange={(e) => onToggle(e.target.checked)}
         aria-label={item.title}
-        className="h-4 w-4 shrink-0 cursor-pointer accent-blue-600 disabled:cursor-not-allowed"
+        className="h-4 w-4 shrink-0 cursor-pointer accent-blue-600"
       />
       <span className={`min-w-0 flex-1 break-words ${item.done ? 'text-fg-subtle line-through' : 'text-fg'}`}>
         {item.title}
@@ -151,24 +141,22 @@ function ChecklistRow({ item, first, last, canTick, canEdit, doneByName, onToggl
           ✓ {doneByName} · {formatDayHeading(toTeamDate(item.doneAt))}
         </span>
       )}
-      {canEdit && (
-        <span className="flex shrink-0 items-center">
-          <button type="button" onClick={() => onMove('up')} disabled={first} aria-label={`Move ${item.title} up`} className={checklistIconBtn}>
-            ↑
-          </button>
-          <button type="button" onClick={() => onMove('down')} disabled={last} aria-label={`Move ${item.title} down`} className={checklistIconBtn}>
-            ↓
-          </button>
-          <button
-            type="button"
-            onClick={onRemove}
-            aria-label={`Remove ${item.title}`}
-            className={`${checklistIconBtn} hover:bg-overdue-soft hover:text-overdue`}
-          >
-            ×
-          </button>
-        </span>
-      )}
+      <span className="flex shrink-0 items-center">
+        <button type="button" onClick={() => onMove('up')} disabled={first} aria-label={`Move ${item.title} up`} className={checklistIconBtn}>
+          ↑
+        </button>
+        <button type="button" onClick={() => onMove('down')} disabled={last} aria-label={`Move ${item.title} down`} className={checklistIconBtn}>
+          ↓
+        </button>
+        <button
+          type="button"
+          onClick={onRemove}
+          aria-label={`Remove ${item.title}`}
+          className={`${checklistIconBtn} hover:bg-overdue-soft hover:text-overdue`}
+        >
+          ×
+        </button>
+      </span>
     </li>
   )
 }

@@ -5,6 +5,7 @@ import { ErrorState } from '../../components/ErrorState'
 import { LoadingState } from '../../components/LoadingState'
 import { ui } from '../../components/ui'
 import type { TaskStatus } from '../../data/types'
+import { TASK_STATUS_LABEL } from '../../domain/actions'
 import { ALL_ASSIGNEES, defaultAssigneeFilter } from '../../domain/taskFilters'
 import { useMe } from '../auth/useMe'
 import { useProjects } from '../projects/queries'
@@ -12,9 +13,13 @@ import { nameOf, useProfiles } from '../team/queries'
 import { useTasks } from './queries'
 import { TaskRow } from './TaskRow'
 
+/** "Open" = everything not done yet; the other options are single statuses. */
+const OPEN = 'open'
+type StatusFilter = TaskStatus | typeof OPEN | 'all'
+
 /**
  * All tasks across projects. Defaults to open tasks (what still needs doing),
- * and for members, to their own tasks — "Everyone" is one dropdown pick away.
+ * and to your own tasks — "Everyone" is one dropdown pick away.
  */
 export function TasksPage() {
   const { me } = useMe()
@@ -26,13 +31,13 @@ export function TasksPage() {
   // Derived instead of synced with useEffect: no extra render, and a real pick always wins.
   const [pickedAssignee, setPickedAssignee] = useState<string | null>(null)
   const assignee = pickedAssignee ?? defaultAssigneeFilter(me)
-  const [status, setStatus] = useState<TaskStatus | 'all'>('todo')
+  const [status, setStatus] = useState<StatusFilter>(OPEN)
   const [projectId, setProjectId] = useState('all')
 
   const visible = (tasks.data ?? []).filter(
     (t) =>
       (assignee === ALL_ASSIGNEES || t.assignedTo === assignee) &&
-      (status === 'all' || t.status === status) &&
+      (status === 'all' || (status === OPEN ? t.status !== 'done' : t.status === status)) &&
       (projectId === 'all' || t.projectId === projectId),
   )
   const projectName = (id: string | null) => projects.data?.find((p) => p.id === id)?.name
@@ -69,14 +74,15 @@ export function TasksPage() {
           Status
           <select
             value={status}
-            onChange={(e) => setStatus(e.target.value as TaskStatus | 'all')}
+            onChange={(e) => setStatus(e.target.value as StatusFilter)}
             className={`${ui.select} mt-1 block w-full`}
           >
-            <option value="todo">To do</option>
-            <option value="submitted">Submitted (waiting for lead)</option>
-            <option value="changes_requested">Changes requested</option>
-            <option value="resubmitted">Resubmitted</option>
-            <option value="approved">Approved</option>
+            <option value={OPEN}>Open</option>
+            {(Object.keys(TASK_STATUS_LABEL) as TaskStatus[]).map((s) => (
+              <option key={s} value={s}>
+                {TASK_STATUS_LABEL[s]}
+              </option>
+            ))}
             <option value="all">All</option>
           </select>
         </label>

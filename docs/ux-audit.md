@@ -57,6 +57,7 @@ Button → "Request changes"; `send_back_*()` RPCs → `request_changes_*()`; fi
 **Fix:** derive the tile and the badge from the same function (`reviewQueues`); label all-time tiles ("Team-wide · all days"); make each tile a link to Review or a pre-filtered Tasks view.
 
 - [ ] **1c. Tasks page hides work people still have to do**
+**Partial:** default is now "Open" (everything not Done); filters still in component state, no "Assigned to me" shortcut, no deadline sort.
 **Problem:** default filter "To do" hides `needs_review` tasks — the most urgent ones for the assignee. Filters live in component state, so opening a task and pressing Back resets them. No "Assigned to me" shortcut; no deadline sort.
 
 **Where:**
@@ -141,7 +142,8 @@ Button → "Request changes"; `send_back_*()` RPCs → `request_changes_*()`; fi
 
 **Fix:** `isToday ? 'Nothing logged yet.' : 'Nothing logged this day.'`
 
-- [ ] **2h. Disabled checkboxes look broken**
+- [x] **2h. Disabled checkboxes look broken**
+**Done:** TaskRow no longer has a checkbox; status moves are buttons from `StatusActions` (under "More" when it is not your turn).
 **Problem:** on someone else's task, a greyed checkbox reads as a broken control.
 
 **Where:** `src/features/tasks/TaskRow.tsx:57`

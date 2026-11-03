@@ -4,13 +4,13 @@ import { RemoveBadge } from '../../components/FileDropzone'
 import { ui } from '../../components/ui'
 import { formatBytes, isImage } from '../../data/attachmentRules'
 import type { Profile, Task, TaskAttachment } from '../../data/types'
-import { canRemoveTaskAttachment } from '../../domain/permissions'
 import { nameOf, useProfiles } from '../team/queries'
 import { useRemoveTaskAttachment } from './queries'
 
 interface AttachmentListProps {
   attachments: TaskAttachment[]
-  task: Task
+  /** Kept so callers don't change; every file is removable by everyone now. */
+  task?: Task
   me: Profile | undefined
   /** Show "Added by …" under each file (useful when several people add to the same list). */
   showUploader?: boolean
@@ -18,10 +18,10 @@ interface AttachmentListProps {
 
 /**
  * Saved task files: images as thumbnails, documents as download rows.
- * Each file has a remove button for whoever may remove it (asks first; removal is permanent).
+ * Each file has a remove button for everyone on the team (asks first).
  * Used for both the brief (in the task header) and the proof (in the submission).
  */
-export function AttachmentList({ attachments, task, me, showUploader = false }: AttachmentListProps) {
+export function AttachmentList({ attachments, me, showUploader = false }: AttachmentListProps) {
   const profiles = useProfiles()
   const removeAttachment = useRemoveTaskAttachment()
   const [confirmRemove, setConfirmRemove] = useState<TaskAttachment | null>(null)
@@ -31,7 +31,6 @@ export function AttachmentList({ attachments, task, me, showUploader = false }: 
 
   const images = attachments.filter((a) => isImage(a.mimeType))
   const documents = attachments.filter((a) => !isImage(a.mimeType))
-  const canRemove = (a: TaskAttachment) => (me ? canRemoveTaskAttachment(me, task, a) : false)
   const addedBy = (a: TaskAttachment) => `Added by ${a.uploadedBy === me?.id ? 'you' : nameOf(profiles.data, a.uploadedBy)}`
 
   async function remove(attachment: TaskAttachment) {
@@ -67,9 +66,7 @@ export function AttachmentList({ attachments, task, me, showUploader = false }: 
                 <img src={image.url} alt={image.fileName} className="h-32 w-full object-cover" />
               </a>
               {showUploader && <p className="mt-1 truncate text-xs text-fg-muted">{addedBy(image)}</p>}
-              {canRemove(image) && (
-                <RemoveBadge label={`Remove ${image.fileName}`} onClick={() => setConfirmRemove(image)} />
-              )}
+              <RemoveBadge label={`Remove ${image.fileName}`} onClick={() => setConfirmRemove(image)} />
             </li>
           ))}
         </ul>
@@ -90,16 +87,14 @@ export function AttachmentList({ attachments, task, me, showUploader = false }: 
               <a href={doc.url} className={ui.link} aria-label={`Download ${doc.fileName}`}>
                 Download
               </a>
-              {canRemove(doc) && (
-                <button
-                  type="button"
-                  onClick={() => setConfirmRemove(doc)}
-                  className="text-xs font-medium text-overdue hover:underline"
-                  aria-label={`Remove ${doc.fileName}`}
-                >
-                  Remove
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={() => setConfirmRemove(doc)}
+                className="text-xs font-medium text-overdue hover:underline"
+                aria-label={`Remove ${doc.fileName}`}
+              >
+                Remove
+              </button>
             </li>
           ))}
         </ul>
@@ -108,7 +103,7 @@ export function AttachmentList({ attachments, task, me, showUploader = false }: 
       <ConfirmDialog
         open={confirmRemove !== null}
         title={`Remove “${confirmRemove?.fileName ?? ''}”?`}
-        body="The file is deleted for everyone. This cannot be undone."
+        body="The file moves to Trash for everyone."
         confirmLabel="Remove"
         busy={removeAttachment.isPending}
         onConfirm={() => confirmRemove && remove(confirmRemove)}

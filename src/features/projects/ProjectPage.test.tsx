@@ -5,11 +5,17 @@ import { listFindings } from '../../data/findings'
 import { getFindingImagesFor } from '../../data/images'
 import { getMyProfile, listProfiles } from '../../data/profiles'
 import { deleteProject, getProject, getProjectDeleteCounts, listProjects } from '../../data/projects'
+import { listUnseen } from '../../data/reads'
 import { listTasks } from '../../data/tasks'
 import type { Project } from '../../data/types'
+import { FINDING_STATUS_LABEL, TASK_STATUS_LABEL } from '../../domain/actions'
 import { hedi, khaushik, lead, makeFinding, makeTask } from '../../test/factories'
 import { auth } from '../../test/mockAuth'
-import { renderApp } from '../../test/renderApp'
+import { renderPage } from '../../test/renderPage'
+import { ProjectPage } from './ProjectPage'
+
+const renderApp = (path: string) =>
+  renderPage(<ProjectPage />, { path, route: '/projects/:id', others: { '/projects': <h1>Projects</h1> } })
 
 vi.mock('../../data/auth', () => import('../../test/mockAuth').then((m) => m.authModule))
 vi.mock('../../data/profiles', () => ({ getMyProfile: vi.fn(), listProfiles: vi.fn() }))
@@ -21,7 +27,9 @@ vi.mock('../../data/projects', () => ({
   getProjectDeleteCounts: vi.fn(),
   deleteProject: vi.fn(),
 }))
-vi.mock('../../data/tasks', () => ({ listTasks: vi.fn() }))
+vi.mock('../../data/tasks', () => import('../../test/mockData').then((m) => m.tasksModule))
+vi.mock('../../data/checklist', () => import('../../test/mockData').then((m) => m.checklistModule))
+vi.mock('../../data/reads', () => import('../../test/mockData').then((m) => m.readsModule))
 vi.mock('../../data/findings', () => ({ listFindings: vi.fn() }))
 vi.mock('../../data/images', () => ({ getFindingImagesFor: vi.fn() }))
 
@@ -31,6 +39,8 @@ const project: Project = {
   description: 'Android + iOS testing',
   createdBy: lead.id,
   createdAt: '2026-10-01T00:00:00Z',
+  deletedAt: null,
+  deletedBy: null,
 }
 
 function signInAs(profile: typeof hedi) {
@@ -51,7 +61,7 @@ describe('ProjectPage', () => {
         title: 'Login crash',
         explanation: 'Steps:\n1. Fresh install\n2. App closes',
         findingDate: '2026-10-29',
-        status: 'submitted',
+        status: 'open',
         authorId: hedi.id,
         imageCount: 2,
       }),
@@ -60,10 +70,10 @@ describe('ProjectPage', () => {
         title: 'Push delay',
         explanation: 'Median 31s',
         findingDate: '2026-10-29',
-        status: 'approved',
+        status: 'verified',
         authorId: khaushik.id,
       }),
-      makeFinding({ title: 'Button misaligned', findingDate: '2026-10-28', status: 'submitted', authorId: hedi.id }),
+      makeFinding({ title: 'Button misaligned', findingDate: '2026-10-28', status: 'open', authorId: hedi.id }),
     ])
   })
 
@@ -75,10 +85,10 @@ describe('ProjectPage', () => {
     expect(screen.getByRole('link', { name: /Login crash/ })).toHaveTextContent('📷 2')
   })
 
-  it('filters findings to closed only', async () => {
+  it('filters findings to verified only', async () => {
     renderApp('/projects/p1')
     await screen.findByText('Login crash')
-    await userEvent.selectOptions(screen.getByLabelText('Finding status'), 'approved')
+    await userEvent.selectOptions(screen.getByLabelText('Finding status'), 'verified')
     expect(screen.queryByText('Login crash')).not.toBeInTheDocument()
     expect(screen.getByText('Push delay')).toBeInTheDocument()
   })
@@ -98,23 +108,62 @@ describe('ProjectPage', () => {
     expect(within(tasks).getByText('Hedi')).toBeInTheDocument()
   })
 
-  it('hides the delete button from members', async () => {
+  it('filter lists new statuses', async () => {
     renderApp('/projects/p1')
-    await screen.findByRole('heading', { name: 'Mobile App QA' })
-    expect(screen.queryByRole('button', { name: 'Delete project' })).not.toBeInTheDocument()
+    await screen.findByText('Login crash')
+    const labels = (name: string) =>
+      within(screen.getByLabelText(name))
+        .getAllByRole('option')
+        .map((o) => o.textContent)
+    expect(labels('Finding status')).toEqual(expect.arrayContaining(Object.values(FINDING_STATUS_LABEL)))
+    expect(labels('Task status')).toEqual(expect.arrayContaining(Object.values(TASK_STATUS_LABEL)))
+    expect(labels('Finding status').join()).not.toMatch(/waiting for lead/i)
+    expect(labels('Task status').join()).not.toMatch(/waiting for lead/i)
   })
 
-  it('lets the lead delete after confirming the counts', async () => {
-    signInAs(lead)
+  it('filters tasks by a new status', async () => {
+    vi.mocked(listTasks).mockResolvedValue([
+      makeTask({ title: 'Retest login', projectId: 'p1' }),
+      makeTask({ title: 'Stuck thing', projectId: 'p1', status: 'blocked', blockedReason: 'No device' }),
+    ])
+    renderApp('/projects/p1')
+    await screen.findByText('Stuck thing')
+    await userEvent.selectOptions(screen.getByLabelText('Task status'), 'blocked')
+    expect(screen.getByText('Stuck thing')).toBeInTheDocument()
+    expect(screen.queryByText('Retest login')).not.toBeInTheDocument()
+  })
+
+  it('shows the NEW dot on unseen tasks and findings only', async () => {
+    vi.mocked(listTasks).mockResolvedValue([
+      makeTask({ id: 't-new', title: 'Fresh task', projectId: 'p1' }),
+      makeTask({ id: 't-old', title: 'Old task', projectId: 'p1' }),
+    ])
+    vi.mocked(listUnseen).mockResolvedValue([
+      { type: 'task', id: 't-new' },
+      { type: 'finding', id: 'f-push' },
+    ])
+    renderApp('/projects/p1')
+
+    const taskRow = (await screen.findByText('Fresh task')).closest('li') as HTMLElement
+    expect(await within(taskRow).findByLabelText('New')).toBeInTheDocument()
+    expect(within((screen.getByText('Old task')).closest('li') as HTMLElement).queryByLabelText('New')).toBeNull()
+
+    const pushRow = screen.getByText('Push delay').closest('li') as HTMLElement
+    expect(within(pushRow).getByLabelText('New')).toBeInTheDocument()
+    const loginRow = screen.getByText('Login crash').closest('li') as HTMLElement
+    expect(within(loginRow).queryByLabelText('New')).toBeNull()
+  })
+
+  it('member can delete project', async () => {
+    // Hedi did not create this project; everyone on the team may delete it.
     vi.mocked(getProjectDeleteCounts).mockResolvedValue({ findings: 3, tasks: 2, images: 5, attachments: 4 })
     vi.mocked(deleteProject).mockResolvedValue()
     renderApp('/projects/p1')
 
     await userEvent.click(await screen.findByRole('button', { name: 'Delete project' }))
     const dialog = await screen.findByRole('dialog')
-    expect(
-      await within(dialog).findByText('This deletes 3 findings (with 5 screenshots) and 2 tasks (with 4 attachments). This cannot be undone.'),
-    ).toBeInTheDocument()
+    expect(await within(dialog).findByText('Moves the project and everything in it to Trash.')).toBeInTheDocument()
+    expect(within(dialog).getByText(/3 findings.*2 tasks/)).toBeInTheDocument()
     expect(deleteProject).not.toHaveBeenCalled()
 
     await userEvent.click(within(dialog).getByRole('button', { name: 'Delete project' }))
@@ -125,8 +174,8 @@ describe('ProjectPage', () => {
   describe('Show details', () => {
     const shots = {
       'f-login': [
-        { id: 'i1', findingId: 'f-login', storagePath: 'findings/f-login/a.webp', position: 0, url: 'http://img/a' },
-        { id: 'i2', findingId: 'f-login', storagePath: 'findings/f-login/b.webp', position: 1, url: 'http://img/b' },
+        { id: 'i1', findingId: 'f-login', storagePath: 'findings/f-login/a.webp', position: 0, url: 'http://img/a', deletedAt: null, deletedBy: null },
+        { id: 'i2', findingId: 'f-login', storagePath: 'findings/f-login/b.webp', position: 1, url: 'http://img/b', deletedAt: null, deletedBy: null },
       ],
     }
 

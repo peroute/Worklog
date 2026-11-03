@@ -1,15 +1,20 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
+import { Markdown } from '../../components/Markdown'
 import { StatusBadge } from '../../components/StatusBadge'
 import { statusEdge, ui } from '../../components/ui'
 import type { Profile, Task } from '../../data/types'
+import { needsReason, taskActions, taskActionTarget, type FindingAction, type TaskAction } from '../../domain/actions'
 import { isOverdue, notStartedBy } from '../../domain/bucketTasks'
-import { canEditContent, taskActions } from '../../domain/permissions'
+import { whoseTurnTask } from '../../domain/turn'
 import { formatDayHeading, todayInTeamTz } from '../../lib/dates'
+import { NewDot } from '../items/NewDot'
+import { useItemStatusMutation } from '../items/queries'
+import { StatusActions } from '../items/StatusActions'
+import { useProfiles } from '../team/queries'
 import { useChecklist } from './checklistQueries'
-import { useDeleteTask, useSetTaskStatus } from './queries'
-import { Markdown } from '../../components/Markdown'
+import { useDeleteTask } from './queries'
 
 interface TaskRowProps {
   task: Task
@@ -19,6 +24,7 @@ interface TaskRowProps {
   creatorName?: string
   /** Shown on cross-project lists (Tasks, Today); omitted on a project's own page. */
   projectName?: string
+  /** Decides whose turn it is (buttons vs. "More"). Everyone may edit, delete and act. */
   me: Profile | undefined
 }
 
@@ -28,13 +34,14 @@ const chipBase = 'inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-x
 
 /** One task line, reused on the Project, Tasks and Today pages. Owns its own actions. */
 export function TaskRow({ task, assigneeName, creatorName, projectName, me }: TaskRowProps) {
-  const setStatus = useSetTaskStatus()
+  const setStatus = useItemStatusMutation()
   const deleteTask = useDeleteTask()
+  const profiles = useProfiles()
   const [expanded, setExpanded] = useState(false)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
-  const [confirmingSubmit, setConfirmingSubmit] = useState(false)
+  const [confirmingFinish, setConfirmingFinish] = useState(false)
   // Item titles are only fetched when the dialog opens: a list page can show dozens of rows.
-  const checklist = useChecklist(task.id, { enabled: confirmingSubmit })
+  const checklist = useChecklist(task.id, { enabled: confirmingFinish })
   const unticked = task.checklistTotal - task.checklistDone
   const [error, setError] = useState<string | null>(null)
 
@@ -43,13 +50,30 @@ export function TaskRow({ task, assigneeName, creatorName, projectName, me }: Ta
   // Scheduled for later: hidden on Today until then, labeled everywhere else it's listed.
   const waiting = task.status === 'todo' && notStartedBy(task, today)
   const actions = me ? taskActions(me, task) : []
-  // The checkbox is the assignee's To do ⇄ Done switch; review states show their badge instead.
-  const showCheckbox = task.status === 'todo' || task.status === 'submitted'
-  const canToggle = actions.includes('markDone') || actions.includes('undoDone')
-  // Approved work is frozen for everyone but the lead.
-  const canEdit = me ? canEditContent(me, task.createdBy, task.status === 'approved') : false
-  const done = task.status !== 'todo' && task.status !== 'changes_requested'
+  // Don't guess whose turn it is before the team list is in: the buttons would jump to "More" and back.
+  const myTurn = Boolean(me && profiles.data && whoseTurnTask(task, profiles.data).includes(me.id))
+  const finished = task.status === 'done'
   const edgeClass = statusEdge(task.status, overdue)
+
+  async function move(action: TaskAction, text?: string) {
+    await setStatus.mutateAsync({
+      type: 'task',
+      id: task.id,
+      to: taskActionTarget(action, task),
+      ...(text === undefined ? {} : needsReason(action) ? { reason: text } : { comment: text }),
+    })
+  }
+
+  // StatusActions shows a refused move itself (it catches what this rejects with).
+  async function onRun(action: FindingAction | TaskAction, text?: string) {
+    const taskAction = action as TaskAction
+    if (taskAction === 'finish' && unticked > 0) {
+      // Finishing with open checklist items asks first; the dialog does the move if they insist.
+      setConfirmingFinish(true)
+      return
+    }
+    await move(taskAction, text)
+  }
 
   async function run(action: () => Promise<unknown>) {
     setError(null)
@@ -63,33 +87,19 @@ export function TaskRow({ task, assigneeName, creatorName, projectName, me }: Ta
   return (
     <div className={`px-4 py-3 transition-colors hover:bg-surface-2/50 ${edgeClass}`}>
       <div className="flex items-start gap-3">
-        {showCheckbox ? (
-          <input
-            type="checkbox"
-            checked={done}
-            disabled={!canToggle || setStatus.isPending}
-            aria-label={`Mark “${task.title}” done`}
-            onChange={(e) => {
-              // Submitting with unticked items asks first; un-submitting never does.
-              if (e.target.checked && unticked > 0) setConfirmingSubmit(true)
-              else run(() => setStatus.mutateAsync({ id: task.id, status: e.target.checked ? 'submitted' : 'todo' }))
-            }}
-            className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer accent-blue-600 disabled:cursor-not-allowed"
-          />
-        ) : (
-          <span aria-hidden="true" className="w-4 shrink-0" />
-        )}
-
         <div className="min-w-0 flex-1">
           <p
-            className={`text-sm font-medium ${
-              task.status === 'approved' ? 'text-fg-subtle line-through' : done ? 'text-fg-muted' : 'text-fg'
+            className={`flex items-center gap-2 text-sm font-medium ${
+              finished ? 'text-fg-subtle line-through' : 'text-fg'
             }`}
           >
-            {projectName && <span className={`${ui.tag} mr-2 align-middle`}>{projectName}</span>}
-            <Link to={`/tasks/${task.id}`} className="hover:text-accent-fg hover:underline">
-              {task.title}
-            </Link>
+            <NewDot item={{ type: 'task', id: task.id }} />
+            <span className="min-w-0">
+              {projectName && <span className={`${ui.tag} mr-2 align-middle`}>{projectName}</span>}
+              <Link to={`/tasks/${task.id}`} className="hover:text-accent-fg hover:underline">
+                {task.title}
+              </Link>
+            </span>
           </p>
           {/* Meta wraps under the title on narrow screens. */}
           <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-fg-muted">
@@ -120,6 +130,11 @@ export function TaskRow({ task, assigneeName, creatorName, projectName, me }: Ta
               </span>
             )}
           </div>
+          {actions.length > 0 && (
+            <div className="mt-2">
+              <StatusActions actions={actions} primary={myTurn} onRun={onRun} />
+            </div>
+          )}
         </div>
 
         <div className="flex shrink-0 items-center gap-0.5">
@@ -133,33 +148,29 @@ export function TaskRow({ task, assigneeName, creatorName, projectName, me }: Ta
               Details
             </button>
           )}
-          {canEdit && (
-            <>
-              <Link
-                to={`/tasks/${task.id}/edit`}
-                className={`${smallAction} text-fg-muted hover:bg-surface-2 hover:text-fg`}
-              >
-                Edit
-              </Link>
-              <button
-                type="button"
-                onClick={() => setConfirmingDelete(true)}
-                className={`${smallAction} text-overdue hover:bg-overdue-soft`}
-              >
-                Delete
-              </button>
-            </>
-          )}
+          <Link
+            to={`/tasks/${task.id}/edit`}
+            className={`${smallAction} text-fg-muted hover:bg-surface-2 hover:text-fg`}
+          >
+            Edit
+          </Link>
+          <button
+            type="button"
+            onClick={() => setConfirmingDelete(true)}
+            className={`${smallAction} text-overdue hover:bg-overdue-soft`}
+          >
+            Delete
+          </button>
         </div>
       </div>
 
       {expanded && task.explanation && (
-        <Markdown className="mt-2 ml-7 rounded-lg bg-surface-2 p-3 text-sm leading-relaxed text-fg">
+        <Markdown className="mt-2 rounded-lg bg-surface-2 p-3 text-sm leading-relaxed text-fg">
           {task.explanation}
         </Markdown>
       )}
       {error && (
-        <p role="alert" className="mt-1 ml-7 text-xs font-medium text-overdue">
+        <p role="alert" className="mt-1 text-xs font-medium text-overdue">
           {error}
         </p>
       )}
@@ -167,7 +178,7 @@ export function TaskRow({ task, assigneeName, creatorName, projectName, me }: Ta
       <ConfirmDialog
         open={confirmingDelete}
         title="Delete this task?"
-        body={`“${task.title}” will be removed. Findings linked to it are kept.`}
+        body={`“${task.title}” moves to Trash. You can restore it from there. Findings linked to it are kept.`}
         confirmLabel="Delete task"
         busy={deleteTask.isPending}
         onCancel={() => setConfirmingDelete(false)}
@@ -175,7 +186,7 @@ export function TaskRow({ task, assigneeName, creatorName, projectName, me }: Ta
       />
 
       <ConfirmDialog
-        open={confirmingSubmit}
+        open={confirmingFinish}
         tone="primary"
         title={`${unticked} of ${task.checklistTotal} checklist items aren't ticked`}
         body={
@@ -189,16 +200,16 @@ export function TaskRow({ task, assigneeName, creatorName, projectName, me }: Ta
                   ))}
               </ul>
             )}
-            <p className="mt-2">You can still submit. Open the task to add a note saying why.</p>
+            <p className="mt-2">You can still finish it. Open the task to add a note saying why.</p>
           </>
         }
-        confirmLabel="Submit anyway"
+        confirmLabel="Finish anyway"
         busy={setStatus.isPending}
-        onCancel={() => setConfirmingSubmit(false)}
+        onCancel={() => setConfirmingFinish(false)}
         onConfirm={() =>
           run(async () => {
-            await setStatus.mutateAsync({ id: task.id, status: 'submitted' })
-            setConfirmingSubmit(false)
+            await move('finish')
+            setConfirmingFinish(false)
           })
         }
       />

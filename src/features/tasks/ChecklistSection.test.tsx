@@ -11,7 +11,7 @@ import {
 import { listProfiles } from '../../data/profiles'
 import type { ChecklistItem, Profile, TaskStatus } from '../../data/types'
 import { hedi, khaushik, lead, makeChecklistItem, makeTask } from '../../test/factories'
-import { renderWithProviders } from '../../test/renderApp'
+import { renderWithProviders } from '../../test/renderPage'
 import { ChecklistSection } from './ChecklistSection'
 
 vi.mock('../../data/checklist', () => import('../../test/mockData').then((m) => m.checklistModule))
@@ -43,16 +43,31 @@ describe('ChecklistSection', () => {
     expect(await screen.findByText(/✓ Hedi/)).toBeInTheDocument()
   })
 
-  it('lets the assignee tick but not change the list', async () => {
+  it('lets the assignee tick and change the list', async () => {
     show(hedi)
     expect(await screen.findByRole('checkbox', { name: 'Fix' })).toBeEnabled()
-    expect(screen.queryByPlaceholderText('Add an item…')).toBeNull()
-    expect(screen.queryByRole('button', { name: /Remove/ })).toBeNull()
+    expect(screen.getByPlaceholderText('Add an item…')).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Remove Fix' })).toBeInTheDocument()
   })
 
-  it('locks the boxes once the assignee has submitted', async () => {
-    show(hedi, 'submitted')
-    expect(await screen.findByRole('checkbox', { name: 'Fix' })).toBeDisabled()
+  it('lets anyone tick and edit, not only the creator or assignee', async () => {
+    const stranger: Profile = { id: 'someone-else', displayName: 'Someone' }
+    show(stranger, 'in_progress')
+    expect(await screen.findByRole('checkbox', { name: 'Fix' })).toBeEnabled()
+    expect(screen.getByPlaceholderText('Add an item…')).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Move Fix up' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Remove Fix' })).toBeInTheDocument()
+  })
+
+  it('keeps the boxes live while the task waits for review', async () => {
+    show(hedi, 'waiting_for_review')
+    expect(await screen.findByRole('checkbox', { name: 'Fix' })).toBeEnabled()
+  })
+
+  it('ticks an item for a person who is not the assignee', async () => {
+    show(lead)
+    await userEvent.click(await screen.findByRole('checkbox', { name: 'Fix' }))
+    expect(setChecklistItemDone).toHaveBeenCalledWith('b', true)
   })
 
   it('lets the creator add an item at the end', async () => {
@@ -113,10 +128,9 @@ describe('ChecklistSection', () => {
     expect(within(row).getByText('Fix')).toHaveClass('break-words')
   })
 
-  it('renders nothing when empty and the viewer cannot add', async () => {
+  it('still offers an empty checklist to anyone, so they can start one', async () => {
     vi.mocked(listChecklist).mockResolvedValue([])
-    const { container } = renderWithProviders(<ChecklistSection task={task()} me={hedi} />)
-    await waitFor(() => expect(listChecklist).toHaveBeenCalled())
-    expect(container).toBeEmptyDOMElement()
+    renderWithProviders(<ChecklistSection task={task()} me={hedi} />)
+    expect(await screen.findByPlaceholderText('Add an item…')).toBeEnabled()
   })
 })

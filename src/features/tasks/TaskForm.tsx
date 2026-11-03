@@ -8,9 +8,7 @@ import { ui } from '../../components/ui'
 import { isImage } from '../../data/attachmentRules'
 import type { ChecklistItem, NewTask, Task, TaskAttachment } from '../../data/types'
 import { isValidChecklistTitle, type DraftItem } from '../../domain/checklist'
-import { canEditContent, canRemoveTaskAttachment } from '../../domain/permissions'
 import { todayInTeamTz } from '../../lib/dates'
-import { useMe } from '../auth/useMe'
 import { useProjects } from '../projects/queries'
 import { useProfiles } from '../team/queries'
 import { AttachmentInput } from './AttachmentInput'
@@ -27,20 +25,16 @@ export function TaskFormPage() {
 }
 
 function EditTask({ id }: { id: string }) {
-  const { me } = useMe()
   // No single-task endpoint: the team's task list is small and usually already cached.
   const tasks = useTasks()
   const attachments = useTaskAttachments(id)
   const checklist = useChecklist(id)
-  if (tasks.isPending || attachments.isPending || checklist.isPending || !me) return <LoadingState />
+  if (tasks.isPending || attachments.isPending || checklist.isPending) return <LoadingState />
   if (tasks.isError) return <ErrorState error={tasks.error} />
   if (attachments.isError) return <ErrorState error={attachments.error} />
   if (checklist.isError) return <ErrorState error={checklist.error} />
   const task = tasks.data.find((t) => t.id === id)
   if (!task) return <ErrorState error={new Error('Task not found')} />
-  if (!canEditContent(me, task.createdBy)) {
-    return <ErrorState error={new Error('Only the creator or lead can edit this task')} />
-  }
   return <TaskForm initial={task} initialAttachments={attachments.data} initialChecklist={checklist.data} />
 }
 
@@ -56,7 +50,6 @@ interface TaskFormProps {
 
 function TaskForm({ initial, initialAttachments = [], initialChecklist = [] }: TaskFormProps) {
   const navigate = useNavigate()
-  const { me } = useMe()
   const [searchParams] = useSearchParams()
   const fromProject = searchParams.get('projectId')
   // "+ Assign task" on Today passes the day being viewed; anywhere else the task starts today.
@@ -72,6 +65,9 @@ function TaskForm({ initial, initialAttachments = [], initialChecklist = [] }: T
   const [assignedTo, setAssignedTo] = useState(initial?.assignedTo ?? '')
   const [explanation, setExplanation] = useState(initial?.explanation ?? '')
   const [deadline, setDeadline] = useState(initial?.deadline ?? '')
+  const [needsReview, setNeedsReview] = useState(initial?.needsReview ?? false)
+  // While someone is reviewing, changing who reviews or what is reviewed would pull the rug out from under them.
+  const lockedForReview = initial?.status === 'waiting_for_review'
   // Old tasks have no start day (visible right away); keep it empty for them rather than invent one.
   const [startDate, setStartDate] = useState(initial ? (initial.startDate ?? '') : defaultStart)
   const [newFiles, setNewFiles] = useState<File[]>([])
@@ -112,6 +108,7 @@ function TaskForm({ initial, initialAttachments = [], initialChecklist = [] }: T
       explanation: explanation.trim() ? explanation : null,
       deadline: deadline || null, // empty date input = no deadline
       startDate: startDate || null, // empty = visible right away
+      needsReview,
     }
 
     const finalChecklist = isValidChecklistTitle(pendingItem)
@@ -169,7 +166,12 @@ function TaskForm({ initial, initialAttachments = [], initialChecklist = [] }: T
 
           <label className={ui.label}>
             Assignee
-            <select value={assignedTo} onChange={(e) => setAssignedTo(e.target.value)} className={ui.input}>
+            <select
+              value={assignedTo}
+              onChange={(e) => setAssignedTo(e.target.value)}
+              disabled={lockedForReview}
+              className={ui.input}
+            >
               <option value="">Choose…</option>
               {profiles.data?.map((p) => (
                 <option key={p.id} value={p.id}>
@@ -186,6 +188,24 @@ function TaskForm({ initial, initialAttachments = [], initialChecklist = [] }: T
           <input value={title} onChange={(e) => setTitle(e.target.value)} className={ui.input} />
           {errors.title && <span className={ui.fieldError}>{errors.title}</span>}
         </label>
+
+        <div>
+          <label className="flex items-center gap-2 text-sm font-medium text-fg">
+            <input
+              type="checkbox"
+              checked={needsReview}
+              disabled={lockedForReview}
+              onChange={(e) => setNeedsReview(e.target.checked)}
+              aria-describedby="review-hint"
+              className="h-4 w-4 accent-blue-600 disabled:cursor-not-allowed"
+            />
+            Needs review
+          </label>
+          <p id="review-hint" className="mt-1 text-xs text-fg-subtle">
+            Someone else approves it before it counts as done
+          </p>
+          {lockedForReview && <p className="mt-1 text-xs text-fg-muted">Move it back to In progress to change this</p>}
+        </div>
 
         <MarkdownField label="Explanation" value={explanation} onChange={setExplanation} rows={5} />
 
@@ -236,8 +256,8 @@ function TaskForm({ initial, initialAttachments = [], initialChecklist = [] }: T
                   ) : (
                     <FileChip name={attachment.fileName} size={attachment.sizeBytes} />
                   )}
-                  {/* The assignee's proof of work can only be removed by them or the lead. */}
-                  {initial && me && canRemoveTaskAttachment(me, initial, attachment) && (
+                  {/* Anyone on the team may remove a brief file; Save is what makes it final. */}
+                  {initial && (
                     <RemoveBadge
                       label={`Remove saved ${attachment.fileName}`}
                       onClick={() => setRemoved((current) => [...current, attachment])}

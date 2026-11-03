@@ -5,6 +5,7 @@ import { StatusBadge } from '../../components/StatusBadge'
 import { statusEdge, ui } from '../../components/ui'
 import type { Finding, Profile, Task } from '../../data/types'
 import { bucketTasks } from '../../domain/bucketTasks'
+import { NewDot } from '../items/NewDot'
 import { TaskRow } from '../tasks/TaskRow'
 
 interface PersonColumnProps {
@@ -33,17 +34,17 @@ export function PersonColumn({
   const headingId = useId()
   const buckets = bucketTasks(tasks, person.id, viewedDate)
   const mine = findings.filter((f) => f.authorId === person.id)
-  const open = buckets.dueOrOverdue.length + buckets.upcoming.length + buckets.noDeadline.length
+  const open = buckets.blocked.length + buckets.dueOrOverdue.length + buckets.upcoming.length + buckets.noDeadline.length
 
   const groups: [string, Task[]][] = [
-    // Work with changes requested comes first: it's what this person must do next.
-    ['Changes requested', buckets.changesRequested],
+    // Blocked work comes first: somebody has to unblock it.
+    ['Blocked', buckets.blocked],
     ['Due / Overdue', buckets.dueOrOverdue],
     ['Upcoming', buckets.upcoming],
     ['No deadline', buckets.noDeadline],
     ['Completed', buckets.completed],
   ]
-  const nothing = open === 0 && buckets.changesRequested.length === 0 && buckets.completed.length === 0 && mine.length === 0
+  const nothing = open === 0 && buckets.completed.length === 0 && mine.length === 0
 
   return (
     <section aria-labelledby={headingId} className={`${ui.card} flex flex-col overflow-hidden`}>
@@ -65,7 +66,7 @@ export function PersonColumn({
         .filter(([, items]) => items.length > 0)
         .map(([label, items]) => (
           <div key={label} className="border-b border-line last:border-b-0">
-            <h3 className={`${ui.sectionTitle} px-4 pt-3 pb-1 ${label === 'Changes requested' ? 'text-review' : ''}`}>
+            <h3 className={`${ui.sectionTitle} px-4 pt-3 pb-1 ${label === 'Blocked' ? 'text-overdue' : ''}`}>
               {label}
             </h3>
             <ul className="divide-y divide-line">
@@ -95,6 +96,7 @@ export function PersonColumn({
                     finding.status,
                   )}`}
                 >
+                  <NewDot item={{ type: 'finding', id: finding.id }} />
                   <span className={ui.tag}>{projectName(finding.projectId)}</span>
                   <span className="min-w-0 flex-1 font-medium text-fg">{finding.title}</span>
                   {finding.imageCount > 0 && <span className="text-xs text-fg-muted">📷 {finding.imageCount}</span>}

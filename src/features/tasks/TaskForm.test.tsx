@@ -9,7 +9,10 @@ import { listFindings } from '../../data/findings'
 import { addChecklistItems, listChecklist, removeChecklistItems, setChecklistPositions } from '../../data/checklist'
 import { hedi, khaushik, lead, makeAttachment, makeChecklistItem, makeTask } from '../../test/factories'
 import { auth } from '../../test/mockAuth'
-import { renderApp } from '../../test/renderApp'
+import { renderPage } from '../../test/renderPage'
+import { ProjectPage } from '../projects/ProjectPage'
+import { TaskDetailPage } from './TaskDetailPage'
+import { TaskFormPage } from './TaskForm'
 
 vi.mock('../../data/auth', () => import('../../test/mockAuth').then((m) => m.authModule))
 vi.mock('../../data/profiles', () => import('../../test/mockData').then((m) => m.profilesModule))
@@ -18,6 +21,10 @@ vi.mock('../../data/tasks', () => import('../../test/mockData').then((m) => m.ta
 vi.mock('../../data/findings', () => import('../../test/mockData').then((m) => m.findingsModule))
 vi.mock('../../data/taskAttachments', () => import('../../test/mockData').then((m) => m.taskAttachmentsModule))
 vi.mock('../../data/checklist', () => import('../../test/mockData').then((m) => m.checklistModule))
+vi.mock('../../data/comments', () => import('../../test/mockData').then((m) => m.commentsModule))
+vi.mock('../../data/activity', () => import('../../test/mockData').then((m) => m.activityModule))
+vi.mock('../../data/reads', () => import('../../test/mockData').then((m) => m.readsModule))
+vi.mock('../../data/images', () => import('../../test/mockData').then((m) => m.imagesModule))
 // Real compression needs a canvas; pretend every screenshot comes out as a small WebP.
 // Pin "today" so the default start day is predictable.
 vi.mock('../../lib/dates', async (importOriginal) => ({
@@ -36,7 +43,25 @@ async function fillRequired() {
   await userEvent.selectOptions(screen.getByLabelText('Assignee'), khaushik.id)
 }
 
-const project = { id: 'p1', name: 'Mobile App QA', description: null, createdBy: lead.id, createdAt: '' }
+const project = {
+  id: 'p1',
+  name: 'Mobile App QA',
+  description: null,
+  createdBy: lead.id,
+  createdAt: '',
+  deletedAt: null,
+  deletedBy: null,
+}
+
+/** Mounts the form at `path` (new or edit), with the pages it navigates to after saving. */
+function renderApp(path: string) {
+  const editing = path.includes('/edit')
+  return renderPage(<TaskFormPage />, {
+    path,
+    route: editing ? '/tasks/:id/edit' : '/tasks/new',
+    others: { '/projects/:id': <ProjectPage />, '/tasks/:id': <TaskDetailPage />, '/tasks': <h1>Tasks</h1> },
+  })
+}
 
 describe('TaskForm', () => {
   beforeEach(() => {
@@ -73,6 +98,7 @@ describe('TaskForm', () => {
       explanation: 'On Android 13\nand 14',
       deadline: null,
       startDate: '2026-11-02',
+      needsReview: false,
     })
     expect(await screen.findByRole('heading', { name: 'Mobile App QA' })).toBeInTheDocument()
   })
@@ -93,6 +119,7 @@ describe('TaskForm', () => {
       explanation: null,
       deadline: null,
       startDate: '2026-11-02',
+      needsReview: false,
     })
   })
 
@@ -170,20 +197,62 @@ describe('TaskForm', () => {
     expect(uploadTaskAttachments).toHaveBeenCalledWith('t1', [expect.objectContaining({ fileName: 'test-plan.pdf' })], 4)
   })
 
-  it("shows the assignee's proof to the creator, without letting them remove it", async () => {
+  it("opens the editor for someone else's task and lets them remove its brief files", async () => {
+    // Hedi neither created this task nor is he the assignee: equal access means he can still edit.
     auth.signedInAs(hedi.id)
     vi.mocked(getMyProfile).mockResolvedValue(hedi)
-    const existing = makeTask({ id: 't1', title: 'Retest login', assignedTo: khaushik.id, createdBy: hedi.id })
+    const existing = makeTask({ id: 't1', title: 'Retest login', assignedTo: khaushik.id, createdBy: lead.id })
     vi.mocked(listTasks).mockResolvedValue([existing])
     vi.mocked(listTaskAttachments).mockResolvedValue([
-      makeAttachment({ taskId: 't1', fileName: 'brief.pdf', uploadedBy: hedi.id }),
-      makeAttachment({ taskId: 't1', fileName: 'proof.pdf', uploadedBy: khaushik.id }),
+      makeAttachment({ taskId: 't1', fileName: 'brief.pdf', uploadedBy: lead.id }),
     ])
     renderApp('/tasks/t1/edit')
 
-    expect(await screen.findByRole('button', { name: 'Remove saved brief.pdf' })).toBeInTheDocument()
-    expect(screen.getByText(/proof\.pdf/)).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Remove saved proof.pdf' })).not.toBeInTheDocument()
+    expect(await screen.findByLabelText('Title')).toHaveValue('Retest login')
+    expect(screen.getByRole('button', { name: 'Remove saved brief.pdf' })).toBeInTheDocument()
+  })
+
+  it('needs review checkbox saves needsReview', async () => {
+    vi.mocked(createTask).mockResolvedValue(makeTask())
+    renderApp('/tasks/new')
+    await fillRequired()
+    const box = screen.getByRole('checkbox', { name: 'Needs review' })
+    expect(box).not.toBeChecked()
+    expect(screen.getByText('Someone else approves it before it counts as done')).toBeInTheDocument()
+    await userEvent.click(box)
+    await userEvent.click(screen.getByRole('button', { name: 'Save task' }))
+    expect(createTask).toHaveBeenCalledWith(expect.objectContaining({ needsReview: true }))
+  })
+
+  it('review and assignee locked while waiting for review', async () => {
+    const existing = makeTask({
+      id: 't1',
+      status: 'waiting_for_review',
+      needsReview: true,
+      submittedBy: hedi.id,
+      assignedTo: hedi.id,
+    })
+    vi.mocked(listTasks).mockResolvedValue([existing])
+    vi.mocked(listTaskAttachments).mockResolvedValue([])
+    renderApp('/tasks/t1/edit')
+
+    expect(await screen.findByRole('checkbox', { name: 'Needs review' })).toBeDisabled()
+    expect(screen.getByLabelText('Assignee')).toBeDisabled()
+    expect(screen.getByText('Move it back to In progress to change this')).toBeInTheDocument()
+    // Everything else stays editable.
+    expect(screen.getByLabelText('Title')).toBeEnabled()
+  })
+
+  it('keeps review and assignee editable for a task that is not waiting for review', async () => {
+    const existing = makeTask({ id: 't1', status: 'in_progress', needsReview: true })
+    vi.mocked(listTasks).mockResolvedValue([existing])
+    vi.mocked(listTaskAttachments).mockResolvedValue([])
+    renderApp('/tasks/t1/edit')
+
+    expect(await screen.findByRole('checkbox', { name: 'Needs review' })).toBeEnabled()
+    expect(screen.getByRole('checkbox', { name: 'Needs review' })).toBeChecked()
+    expect(screen.getByLabelText('Assignee')).toBeEnabled()
+    expect(screen.queryByText('Move it back to In progress to change this')).not.toBeInTheDocument()
   })
 
   it('saves checklist items after creating the task', async () => {

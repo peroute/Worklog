@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import { listActivity } from '../../data/activity'
 import { setFindingStatus } from '../../data/findings'
-import { getLastSeen, markSeen } from '../../data/reads'
+import { getLastSeen, listUnseen, markSeen } from '../../data/reads'
 import { setTaskStatus } from '../../data/tasks'
 import type { CommentTarget, FindingStatus, ItemRef, TaskStatus } from '../../data/types'
 import { buildTimeline } from '../../domain/timeline'
@@ -67,6 +67,20 @@ export function useItemStatusMutation() {
     },
     onSettled: () => Promise.all(ITEM_VIEWS.map((key) => queryClient.invalidateQueries({ queryKey: [key] }))),
   })
+}
+
+const unseenKey = (ref: ItemRef) => `${ref.type}:${ref.id}`
+// Module-level so react-query can reuse the result until the data changes (one Set, not one per row).
+const toKeySet = (refs: ItemRef[]) => new Set(refs.map(unseenKey))
+
+/**
+ * Items where someone else acted since I last looked. Rows ask `isUnseen(ref)` to decide on a NEW dot.
+ * While loading (or if the list failed) nothing is unseen: a missing dot is better than a wrong one.
+ */
+export function useUnseen() {
+  const query = useQuery({ queryKey: ['unseen'], queryFn: listUnseen, select: toKeySet })
+  const keys = query.data
+  return { ...query, isUnseen: (ref: ItemRef) => keys?.has(unseenKey(ref)) ?? false }
 }
 
 /** "I just opened this." Refreshes the unseen list (nav badge / inbox) once the stamp lands. */
