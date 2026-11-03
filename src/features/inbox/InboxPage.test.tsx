@@ -86,6 +86,13 @@ describe('InboxPage', () => {
     expect(await within(nav).findByText(String(rows))).toBeInTheDocument()
   })
 
+  it('shows an error instead of spinning when the profile fails to load', async () => {
+    auth.signedInAs(hedi.id)
+    vi.mocked(getMyProfile).mockRejectedValue(new Error('profile boom'))
+    renderApp('/inbox')
+    expect(await screen.findByText(/profile boom/)).toBeInTheDocument()
+  })
+
   it('has friendly empty states', async () => {
     vi.mocked(listFindings).mockResolvedValue([])
     vi.mocked(listTasks).mockResolvedValue([])
