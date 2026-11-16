@@ -51,6 +51,7 @@ export const taskAttachmentsModule = {
   uploadTaskAttachments: vi.fn(async () => ({ uploaded: 0, failed: 0 })),
   listTaskAttachments: vi.fn(async () => []),
   deleteTaskAttachment: vi.fn(),
+  downloadTaskAttachment: vi.fn(),
 }
 
 export const imagesModule = {

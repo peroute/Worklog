@@ -2,9 +2,10 @@ import { useState } from 'react'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { RemoveBadge } from '../../components/FileDropzone'
 import { ui } from '../../components/ui'
-import { formatBytes, isImage } from '../../data/attachmentRules'
+import { canPreview, formatBytes, isImage } from '../../data/attachmentRules'
 import type { Profile, Task, TaskAttachment } from '../../data/types'
 import { nameOf, useProfiles } from '../team/queries'
+import { DocumentPreview } from './DocumentPreview'
 import { useRemoveTaskAttachment } from './queries'
 
 interface AttachmentListProps {
@@ -17,7 +18,7 @@ interface AttachmentListProps {
 }
 
 /**
- * Saved task files: images as thumbnails, documents as download rows.
+ * Saved task files: images as thumbnails, documents as download rows (PDF/.docx also get Preview).
  * Each file has a remove button for everyone on the team (asks first).
  * Used for both the brief (in the task header) and the proof (in the submission).
  */
@@ -26,6 +27,7 @@ export function AttachmentList({ attachments, me, showUploader = false }: Attach
   const removeAttachment = useRemoveTaskAttachment()
   const [confirmRemove, setConfirmRemove] = useState<TaskAttachment | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [previewing, setPreviewing] = useState<TaskAttachment | null>(null)
 
   if (attachments.length === 0) return null
 
@@ -84,6 +86,16 @@ export function AttachmentList({ attachments, me, showUploader = false }: Attach
                 {formatBytes(doc.sizeBytes)}
                 {showUploader && ` · ${addedBy(doc)}`}
               </span>
+              {canPreview(doc.mimeType) && (
+                <button
+                  type="button"
+                  onClick={() => setPreviewing(doc)}
+                  className={ui.link}
+                  aria-label={`Preview ${doc.fileName}`}
+                >
+                  Preview
+                </button>
+              )}
               <a href={doc.url} className={ui.link} aria-label={`Download ${doc.fileName}`}>
                 Download
               </a>
@@ -99,6 +111,8 @@ export function AttachmentList({ attachments, me, showUploader = false }: Attach
           ))}
         </ul>
       )}
+
+      {previewing && <DocumentPreview attachment={previewing} onClose={() => setPreviewing(null)} />}
 
       <ConfirmDialog
         open={confirmRemove !== null}
