@@ -110,6 +110,13 @@ async function signAttachments(rows: TaskAttachmentRow[]): Promise<Record<string
   return urls
 }
 
+/** The file's bytes, for in-app preview. Goes through the same storage RLS as the signed URLs. */
+export async function downloadTaskAttachment(storagePath: string): Promise<Blob> {
+  const { data, error } = await bucket().download(storagePath)
+  if (error) throw new DataError('Could not load the file', error)
+  return data
+}
+
 /** Hides one attachment (soft delete). The file stays in storage so a restore is lossless. */
 export const deleteTaskAttachment = (attachment: TaskAttachment): Promise<void> =>
   softDelete('task_attachments', attachment.id, 'Attachment')

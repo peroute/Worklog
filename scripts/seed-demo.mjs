@@ -98,4 +98,55 @@ must(
   'create comments',
 )
 
-console.log(`Seeded 2 projects, ${tasks.length} tasks, ${findings.length} findings, 5 comments (today = ${today}).`)
+// Sample PDF + Word attachments, generated here so the repo holds no binary fixtures.
+function samplePdf(lines) {
+  const text = lines.map((l, i) => `BT /F1 ${i === 0 ? 20 : 12} Tf 72 ${720 - i * 28} Td (${l}) Tj ET`).join('\n')
+  const objects = [
+    '<< /Type /Catalog /Pages 2 0 R >>',
+    '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>',
+    `<< /Length ${text.length} >>\nstream\n${text}\nendstream`,
+    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
+  ]
+  let pdf = '%PDF-1.4\n'
+  const offsets = objects.map((body, i) => {
+    const at = pdf.length
+    pdf += `${i + 1} 0 obj\n${body}\nendobj\n`
+    return at
+  })
+  const xref = pdf.length
+  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n${offsets.map((o) => `${String(o).padStart(10, '0')} 00000 n \n`).join('')}`
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`
+  return new Blob([pdf], { type: 'application/pdf' })
+}
+
+async function sampleDocx(title, paragraphs) {
+  const { default: JSZip } = await import('jszip') // installed with docx-preview
+  const p = (t, style) => `<w:p>${style ? `<w:pPr><w:pStyle w:val="${style}"/></w:pPr>` : ''}<w:r><w:t xml:space="preserve">${t}</w:t></w:r></w:p>`
+  const zip = new JSZip()
+  zip.file('[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/></Types>')
+  zip.file('_rels/.rels', '<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>')
+  zip.file('word/_rels/document.xml.rels', '<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>')
+  zip.file('word/styles.xml', '<?xml version="1.0" encoding="UTF-8"?><w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:style w:type="paragraph" w:styleId="Heading1"><w:name w:val="heading 1"/><w:rPr><w:b/><w:sz w:val="36"/><w:color w:val="2F5496"/></w:rPr></w:style></w:styles>')
+  zip.file('word/document.xml', `<?xml version="1.0" encoding="UTF-8"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${p(title, 'Heading1')}${paragraphs.map((t) => p(t)).join('')}<w:sectPr><w:pgSz w:w="12240" w:h="15840"/><w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440"/></w:sectPr></w:body></w:document>`)
+  return zip.generateAsync({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' })
+}
+
+const attachments = [
+  { title: 'Retest login flow', fileName: 'Login test plan.pdf', uploadedBy: creator, kind: 'brief',
+    blob: samplePdf(['Login test plan', 'Devices: Pixel 7 (Android 13), Pixel 8 (Android 14)', '1. Fresh install from the release build', '2. Sign in with Google', '3. Expect: home screen within 3 seconds']) },
+  { title: 'Retest login flow', fileName: 'Release notes 1.4.docx', uploadedBy: creator, kind: 'brief',
+    blob: await sampleDocx('Release notes 1.4', ['New: Sign in with Google on Android.', 'Fixed: checkout button overlapping the total on small screens.', 'Known issue: push notifications can arrive about 30 seconds late.']) },
+  { title: 'Smoke test build 1.4', fileName: 'Smoke test report.docx', uploadedBy: hedi, kind: 'proof',
+    blob: await sampleDocx('Smoke test report: build 1.4', ['All 24 smoke checks passed on Android 14.', 'One flaky check (deep link from email) passed on retry.']) },
+]
+for (const [position, a] of attachments.entries()) {
+  const path = `tasks/${taskId(a.title)}/${crypto.randomUUID()}.${a.fileName.split('.').pop()}`
+  must(await admin.storage.from('task-attachments').upload(path, a.blob, { contentType: a.blob.type }), `upload ${a.fileName}`)
+  must(
+    await admin.from('task_attachments').insert({ task_id: taskId(a.title), storage_path: path, file_name: a.fileName, mime_type: a.blob.type, size_bytes: a.blob.size, position, uploaded_by: a.uploadedBy, kind: a.kind }),
+    `record ${a.fileName}`,
+  )
+}
+
+console.log(`Seeded 2 projects, ${tasks.length} tasks, ${findings.length} findings, 5 comments, ${attachments.length} attachments (today = ${today}).`)

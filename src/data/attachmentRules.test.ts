@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { attachmentMimeType, extensionFor, formatBytes, isCompressibleImage } from './attachmentRules'
+import { attachmentMimeType, canPreview, extensionFor, formatBytes, isCompressibleImage } from './attachmentRules'
 
 describe('attachmentMimeType', () => {
   it('decides by extension, ignoring what the browser claims', () => {
@@ -40,5 +40,15 @@ describe('helpers', () => {
     expect(formatBytes(512)).toBe('512 B')
     expect(formatBytes(2048)).toBe('2 KB')
     expect(formatBytes(1_258_291)).toBe('1.2 MB')
+  })
+})
+
+describe('canPreview', () => {
+  it('previews PDF and .docx only', () => {
+    expect(canPreview('application/pdf')).toBe('pdf')
+    expect(canPreview('application/vnd.openxmlformats-officedocument.wordprocessingml.document')).toBe('docx')
+    expect(canPreview('application/msword')).toBeNull() // old .doc: docx-preview can't read it
+    expect(canPreview('image/png')).toBeNull()
+    expect(canPreview('text/plain')).toBeNull()
   })
 })
