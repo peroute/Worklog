@@ -55,6 +55,13 @@ export function isImage(mimeType: string): boolean {
   return mimeType.startsWith('image/')
 }
 
+/** Which in-app viewer can show this file, or null (download only). Old .doc isn't readable by docx-preview. */
+export function canPreview(mimeType: string): 'pdf' | 'docx' | null {
+  if (mimeType === TYPES_BY_EXTENSION.pdf) return 'pdf'
+  if (mimeType === TYPES_BY_EXTENSION.docx) return 'docx'
+  return null
+}
+
 /** File extension to store under, e.g. 'image/webp' → 'webp'. */
 export function extensionFor(mimeType: string): string {
   return Object.entries(TYPES_BY_EXTENSION).find(([, type]) => type === mimeType)?.[0] ?? 'bin'
