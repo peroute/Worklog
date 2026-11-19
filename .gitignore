@@ -45,4 +45,5 @@ Thumbs.db
 /docs
 /docs
 *.md
+!/README.md
 docs/ux-audit.md
