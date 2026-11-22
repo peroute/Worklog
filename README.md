@@ -32,7 +32,7 @@ Demo data from `npm run seed:demo`.
 
 ## Engineering highlights
 
-- **Security in the database, not just the UI.** Supabase row level security (RLS) and Postgres functions enforce the rules, such as "you can't approve your own work". Rules can't be skipped by calling the API directly.
+- **Security in the database, not just the UI.** Supabase row level security (RLS) and Postgres functions enforce the rules, such as "you can't approve your own work". Rules can't be skipped by calling the API directly. Public sign-ups are off in production; accounts are created by an admin.
 - **Tested at every layer.** Database rules have their own pgTAP tests. Unit tests (Vitest + Testing Library) cover the logic and UI. Integration tests run against a real local Supabase.
 - **Designed before built.** Each feature started as a short written spec and plan, and a UX audit tracks what still needs fixing.
 - **Changed based on real use.** The app started with a lead/member permission model. In practice it got in the way, so it was replaced with a flat model (everyone can edit, every change is logged), with migrations that moved the existing data over.
