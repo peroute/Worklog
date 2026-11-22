@@ -6,7 +6,7 @@ Each bug, test result or research note becomes its own entry, with screenshots, 
 
 ## Who uses it
 
-A three-person research, testing and development team uses it every day. They log findings, assign tasks, and review each other's work in it.
+The TTU Online dev team (3 people) uses it every day. It's an internal tool, so there's no public demo link: see the screenshots below, or run it locally with demo data.
 
 ## What it does
 
@@ -17,13 +17,47 @@ A three-person research, testing and development team uses it every day. They lo
 - **Full history**: every change shows up in a timeline with who made it and when. Deleted items go to a trash and can be restored.
 - **Comments** on every finding and task, written in Markdown.
 
+## Screenshots
+
+Demo data from `npm run seed:demo`.
+
+**Today**: one column per person, with counters for what's blocked, overdue or waiting for review.
+![Today view](.github/screenshots/today.png)
+
+**Your turn**: what needs you, and what you're waiting on.
+![Your turn inbox](.github/screenshots/inbox.png)
+
+**A finding** with its status, actions and full timeline.
+![Finding detail](.github/screenshots/finding.png)
+
 ## Engineering highlights
 
 - **Security in the database, not just the UI.** Supabase row level security (RLS) and Postgres functions enforce the rules, such as "you can't approve your own work". Rules can't be skipped by calling the API directly.
 - **Tested at every layer.** Database rules have their own pgTAP tests. Unit tests (Vitest + Testing Library) cover the logic and UI. Integration tests run against a real local Supabase.
-- **Designed before built.** Each feature started as a short written spec and plan (`docs/superpowers/`). A UX audit (`docs/ux-audit.md`) tracks what still needs fixing.
+- **Designed before built.** Each feature started as a short written spec and plan, and a UX audit tracks what still needs fixing.
 - **Changed based on real use.** The app started with a lead/member permission model. In practice it got in the way, so it was replaced with a flat model (everyone can edit, every change is logged), with migrations that moved the existing data over.
 - **Runs for $0.** Free tiers only: Vercel hosts the frontend, Supabase provides the database, login and file storage.
+
+## Architecture
+
+```mermaid
+flowchart LR
+  UI["React app<br/>(features/*, TanStack Query)"] --> Data["Data layer<br/>(src/data)"]
+  Data --> RLS["Postgres tables<br/>guarded by RLS"]
+  Data --> RPC["Postgres functions (RPC)<br/>status changes, unread tracking"]
+  Data --> Storage["Supabase Storage<br/>screenshots, attachments"]
+  subgraph Supabase
+    RLS
+    RPC
+    Storage
+  end
+```
+
+Components never call Supabase directly. They go through `src/data`, and the database makes the final call on who can do what.
+
+## How I used AI
+
+I used Claude Code to draft code, tests and feature specs; I reviewed every diff myself, and wrote or checked the RLS policies and pgTAP tests line by line, since those are the security boundary.
 
 ## Tech stack
 

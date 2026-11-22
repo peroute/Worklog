@@ -42,8 +42,10 @@ coverage/
 .idea/
 .DS_Store
 Thumbs.db
-/docs
-/docs
+
+# Private notes: AI instructions, specs, plans, audits
+CLAUDE.md
+.claude/
+/docs/
 *.md
 !/README.md
-docs/ux-audit.md
